@@ -39,24 +39,47 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
             title: Text(_session.title),
             actions: [
               IconButton(
-                tooltip: 'GPX 공유',
-                onPressed: () => _shareGpx(context),
-                icon: const Icon(Icons.ios_share_rounded),
+                tooltip: '제목/내용 편집',
+                onPressed: _editSessionDetails,
+                icon: const Icon(Icons.edit_note_rounded),
               ),
-              IconButton(
-                tooltip: '이미지 공유',
-                onPressed: _sharingImage ? null : _shareImage,
-                icon: const Icon(Icons.image_outlined),
-              ),
-              IconButton(
-                tooltip: '사진 추가',
-                onPressed: _addingPhotos ? null : _addSessionPhotos,
-                icon: const Icon(Icons.add_photo_alternate_outlined),
-              ),
-              IconButton(
-                tooltip: '산책 삭제',
-                onPressed: () => _confirmDelete(context),
-                icon: const Icon(Icons.delete_outline_rounded),
+              PopupMenuButton<_DetailMenuAction>(
+                tooltip: '더보기',
+                icon: const Icon(Icons.more_horiz_rounded),
+                onSelected: (action) => _handleMenuAction(context, action),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: _DetailMenuAction.shareGpx,
+                    child: _DetailMenuItem(
+                      icon: Icons.ios_share_rounded,
+                      label: 'GPX 공유',
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: _DetailMenuAction.shareImage,
+                    enabled: !_sharingImage,
+                    child: const _DetailMenuItem(
+                      icon: Icons.image_outlined,
+                      label: '이미지 공유',
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: _DetailMenuAction.addPhotos,
+                    enabled: !_addingPhotos,
+                    child: const _DetailMenuItem(
+                      icon: Icons.add_photo_alternate_outlined,
+                      label: '사진 추가',
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    value: _DetailMenuAction.delete,
+                    child: _DetailMenuItem(
+                      icon: Icons.delete_outline_rounded,
+                      label: '산책 삭제',
+                    ),
+                  ),
+                ],
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -66,6 +89,8 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
                   session: _session,
                   interactive: true,
                   height: 380,
+                  fitRoute: true,
+                  maxAutoFitZoom: 16,
                   onPhotoTap: (photo) => _showPhoto(context, photo),
                 ),
               ),
@@ -106,7 +131,8 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
                         color: Colors.black54,
                       ),
                 ),
-                if (_session.note != null) ...[
+                if (_session.note != null &&
+                    _session.note!.trim().isNotEmpty) ...[
                   const SizedBox(height: 10),
                   Text(
                     _session.note!,
@@ -129,8 +155,10 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
                       final photo = _session.photos[index];
                       return _PhotoThumb(
                         photo: photo,
+                        isFeatured: _session.featuredPhoto?.id == photo.id,
                         onTap: () => _showPhoto(context, photo),
                         onRemove: () => _removePhotoLink(photo),
+                        onSetFeatured: () => _setFeaturedPhoto(photo),
                       );
                     },
                     separatorBuilder: (_, __) => const SizedBox(width: 12),
@@ -169,6 +197,26 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
       if (mounted) {
         setState(() => _sharingImage = false);
       }
+    }
+  }
+
+  Future<void> _handleMenuAction(
+    BuildContext context,
+    _DetailMenuAction action,
+  ) async {
+    switch (action) {
+      case _DetailMenuAction.shareGpx:
+        await _shareGpx(context);
+        return;
+      case _DetailMenuAction.shareImage:
+        await _shareImage();
+        return;
+      case _DetailMenuAction.addPhotos:
+        await _addSessionPhotos();
+        return;
+      case _DetailMenuAction.delete:
+        await _confirmDelete(context);
+        return;
     }
   }
 
@@ -241,9 +289,13 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
       final remaining = _session.photos
           .where((photo) => !idsToRemove.contains(photo.id))
           .toList();
+      final featuredPhotoId = idsToRemove.contains(_session.featuredPhotoId)
+          ? null
+          : _session.featuredPhotoId;
       _session = _session.copyWith(
         photos: [...remaining, ...photosToAdd]
           ..sort((a, b) => a.takenAt.compareTo(b.takenAt)),
+        featuredPhotoId: featuredPhotoId,
       );
     });
   }
@@ -263,6 +315,32 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
       }
     }
     return closest.position;
+  }
+
+  Future<void> _editSessionDetails() async {
+    final result = await showDialog<_SessionDetailsEditResult>(
+      context: context,
+      builder: (context) => _SessionDetailsEditDialog(session: _session),
+    );
+    if (result == null) {
+      return;
+    }
+
+    await WalkRepository.instance.updateSessionDetails(
+      sessionId: _session.id,
+      title: result.title,
+      note: result.note,
+    );
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _session = _session.copyWith(
+        title: result.title,
+        note: result.note,
+      );
+    });
   }
 
   Future<void> _confirmDelete(BuildContext context) async {
@@ -325,16 +403,34 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
       return;
     }
     setState(() {
+      final featuredPhotoId = _session.featuredPhotoId == photo.id
+          ? null
+          : _session.featuredPhotoId;
       _session = _session.copyWith(
         photos: _session.photos.where((item) => item.id != photo.id).toList(),
+        featuredPhotoId: featuredPhotoId,
       );
+    });
+  }
+
+  Future<void> _setFeaturedPhoto(WalkPhoto photo) async {
+    if (_session.featuredPhoto?.id == photo.id) {
+      return;
+    }
+
+    await WalkRepository.instance.setFeaturedPhoto(_session.id, photo.id);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _session = _session.copyWith(featuredPhotoId: photo.id);
     });
   }
 
   void _showPhoto(BuildContext context, WalkPhoto photo) {
     showDialog<void>(
       context: context,
-      builder: (_) => Dialog.fullscreen(
+      builder: (dialogContext) => Dialog.fullscreen(
         child: Stack(
           children: [
             Positioned.fill(
@@ -351,14 +447,177 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: IconButton.filledTonal(
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () => Navigator.of(dialogContext).pop(),
                     icon: const Icon(Icons.close_rounded),
                   ),
                 ),
               ),
             ),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _session.featuredPhoto?.id == photo.id
+                      ? FilledButton.icon(
+                          onPressed: null,
+                          icon: const Icon(Icons.star_rounded),
+                          label: const Text('대표사진'),
+                        )
+                      : FilledButton.icon(
+                          onPressed: () async {
+                            await _setFeaturedPhoto(photo);
+                            if (dialogContext.mounted) {
+                              Navigator.of(dialogContext).pop();
+                            }
+                          },
+                          icon: const Icon(Icons.star_outline_rounded),
+                          label: const Text('대표사진으로 설정'),
+                        ),
+                ),
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SessionDetailsEditResult {
+  const _SessionDetailsEditResult({
+    required this.title,
+    required this.note,
+  });
+
+  final String title;
+  final String? note;
+}
+
+enum _DetailMenuAction {
+  shareGpx,
+  shareImage,
+  addPhotos,
+  delete,
+}
+
+class _DetailMenuItem extends StatelessWidget {
+  const _DetailMenuItem({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon),
+        const SizedBox(width: 12),
+        Text(label),
+      ],
+    );
+  }
+}
+
+class _SessionDetailsEditDialog extends StatefulWidget {
+  const _SessionDetailsEditDialog({required this.session});
+
+  final WalkSession session;
+
+  @override
+  State<_SessionDetailsEditDialog> createState() =>
+      _SessionDetailsEditDialogState();
+}
+
+class _SessionDetailsEditDialogState extends State<_SessionDetailsEditDialog> {
+  late final TextEditingController _titleController;
+  late final TextEditingController _noteController;
+  bool _canSave = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.session.title);
+    _noteController = TextEditingController(text: widget.session.note ?? '');
+    _titleController.addListener(_syncCanSave);
+    _syncCanSave();
+  }
+
+  @override
+  void dispose() {
+    _titleController
+      ..removeListener(_syncCanSave)
+      ..dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('제목/내용 편집'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _titleController,
+              autofocus: true,
+              maxLength: 60,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: '제목',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _noteController,
+              maxLength: 500,
+              maxLines: 5,
+              decoration: const InputDecoration(
+                labelText: '내용',
+                alignLabelWithHint: true,
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('취소'),
+        ),
+        FilledButton(
+          onPressed: _canSave ? _save : null,
+          child: const Text('저장'),
+        ),
+      ],
+    );
+  }
+
+  void _syncCanSave() {
+    final canSave = _titleController.text.trim().isNotEmpty;
+    if (canSave == _canSave) {
+      return;
+    }
+    setState(() {
+      _canSave = canSave;
+    });
+  }
+
+  void _save() {
+    final title = _titleController.text.trim();
+    final note = _noteController.text.trim();
+    Navigator.of(context).pop(
+      _SessionDetailsEditResult(
+        title: title,
+        note: note.isEmpty ? null : note,
       ),
     );
   }
@@ -395,13 +654,17 @@ class _StatBlock extends StatelessWidget {
 class _PhotoThumb extends StatelessWidget {
   const _PhotoThumb({
     required this.photo,
+    required this.isFeatured,
     required this.onTap,
     required this.onRemove,
+    required this.onSetFeatured,
   });
 
   final WalkPhoto photo;
+  final bool isFeatured;
   final VoidCallback onTap;
   final VoidCallback onRemove;
+  final VoidCallback onSetFeatured;
 
   @override
   Widget build(BuildContext context) {
@@ -423,6 +686,23 @@ class _PhotoThumb extends StatelessWidget {
           ),
           Positioned(
             top: 6,
+            left: 6,
+            child: IconButton.filledTonal(
+              tooltip: isFeatured ? '대표사진' : '대표사진으로 설정',
+              style: IconButton.styleFrom(
+                minimumSize: const Size(34, 34),
+                fixedSize: const Size(34, 34),
+                padding: EdgeInsets.zero,
+              ),
+              onPressed: isFeatured ? null : onSetFeatured,
+              icon: Icon(
+                isFeatured ? Icons.star_rounded : Icons.star_outline_rounded,
+                size: 18,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 6,
             right: 6,
             child: IconButton.filledTonal(
               tooltip: '사진 연결 제거',
@@ -435,6 +715,29 @@ class _PhotoThumb extends StatelessWidget {
               icon: const Icon(Icons.link_off_rounded, size: 18),
             ),
           ),
+          if (isFeatured)
+            Positioned(
+              left: 8,
+              bottom: 45,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.62),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                  child: Text(
+                    '대표',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           Positioned(
             left: 8,
             right: 8,

@@ -5,6 +5,7 @@ import '../models/walk_models.dart';
 import '../services/active_walk_service.dart';
 import '../services/walk_repository.dart';
 import '../widgets/walk_map_preview.dart';
+import '../widgets/walk_photo_image.dart';
 import 'record_walk_screen.dart';
 import 'walk_detail_screen.dart';
 
@@ -50,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
             : RefreshIndicator(
                 onRefresh: _loadSessions,
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
                   children: [
                     if (_activeWalk.isActive) ...[
                       _ActiveWalkBanner(onTap: _openRecorder),
@@ -94,10 +95,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      bottomNavigationBar: _StartWalkBar(
+        isActive: _activeWalk.isActive,
         onPressed: _openRecorder,
-        icon: const Icon(Icons.play_arrow_rounded),
-        label: Text(_activeWalk.isActive ? '산책 열기' : '산책 시작'),
       ),
     );
   }
@@ -122,13 +122,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openDetail(WalkSession session) async {
-    final changed = await Navigator.of(context).push<bool>(
+    await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
         builder: (_) => WalkDetailScreen(session: session),
       ),
     );
 
-    if (changed == true) {
+    if (mounted) {
       await _loadSessions();
     }
   }
@@ -193,6 +193,39 @@ class _ActiveWalkBanner extends StatelessWidget {
   }
 }
 
+class _StartWalkBar extends StatelessWidget {
+  const _StartWalkBar({
+    required this.isActive,
+    required this.onPressed,
+  });
+
+  final bool isActive;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+          child: SizedBox(
+            height: 54,
+            child: FilledButton.icon(
+              onPressed: onPressed,
+              icon: Icon(
+                isActive ? Icons.route_rounded : Icons.play_arrow_rounded,
+              ),
+              label: Text(isActive ? '진행 중인 산책 열기' : '산책 시작'),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _TodaySummary extends StatelessWidget {
   const _TodaySummary({required this.sessions});
 
@@ -203,43 +236,48 @@ class _TodaySummary extends StatelessWidget {
     final distance = _distance(sessions) / 1000;
     final minutes = _minutes(sessions);
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF151713),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE5E0D6)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            '오늘',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                ),
+          SizedBox(
+            width: 72,
+            child: Text(
+              '오늘',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: const Color(0xFF151713),
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
           ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _DarkMetric(
-                  value: '${sessions.length}',
-                  label: '산책',
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(
+                  child: _DarkMetric(
+                    value: '${sessions.length}',
+                    label: '산책',
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _DarkMetric(
-                  value: distance.toStringAsFixed(1),
-                  label: 'km',
+                Expanded(
+                  child: _DarkMetric(
+                    value: distance.toStringAsFixed(1),
+                    label: 'km',
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _DarkMetric(
-                  value: '$minutes',
-                  label: '분',
+                Expanded(
+                  child: _DarkMetric(
+                    value: '$minutes',
+                    label: '분',
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -257,9 +295,14 @@ class _HomeTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     return SegmentedButton<int>(
       segments: const [
-        ButtonSegment(value: 0, icon: Icon(Icons.timeline_rounded), label: Text('최근')),
-        ButtonSegment(value: 1, icon: Icon(Icons.calendar_month_rounded), label: Text('기록')),
-        ButtonSegment(value: 2, icon: Icon(Icons.bar_chart_rounded), label: Text('통계')),
+        ButtonSegment(
+            value: 0, icon: Icon(Icons.timeline_rounded), label: Text('최근')),
+        ButtonSegment(
+            value: 1,
+            icon: Icon(Icons.calendar_month_rounded),
+            label: Text('기록')),
+        ButtonSegment(
+            value: 2, icon: Icon(Icons.bar_chart_rounded), label: Text('통계')),
       ],
       selected: {selectedIndex},
       onSelectionChanged: (value) => onChanged(value.first),
@@ -409,7 +452,10 @@ class _HistoryCalendar extends StatelessWidget {
   }
 
   List<DateTime> _daysWithWalks(List<WalkSession> sessions) {
-    return sessions.map((session) => _dayKey(session.startedAt)).toSet().toList()
+    return sessions
+        .map((session) => _dayKey(session.startedAt))
+        .toSet()
+        .toList()
       ..sort((a, b) => b.compareTo(a));
   }
 
@@ -505,8 +551,7 @@ class _CalendarDay extends StatelessWidget {
               height: 1,
             ),
           ),
-          if (hasWalks)
-            const SizedBox(height: 3),
+          if (hasWalks) const SizedBox(height: 3),
           if (hasWalks)
             Text(
               '${distance.toStringAsFixed(1)}k',
@@ -598,7 +643,9 @@ class _StatsCard extends StatelessWidget {
           const SizedBox(height: 14),
           Row(
             children: [
-              Expanded(child: _LightMetric(value: '${sessions.length}', label: '산책')),
+              Expanded(
+                  child:
+                      _LightMetric(value: '${sessions.length}', label: '산책')),
               Expanded(
                 child: _LightMetric(
                   value: (_distance(sessions) / 1000).toStringAsFixed(1),
@@ -629,56 +676,138 @@ class _WalkListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final featuredPhoto = session.featuredPhoto;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Row(
+        child: Column(
           children: [
             SizedBox(
-              width: 132,
-              child: WalkMapPreview(session: session, height: 132),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      session.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${clock.format(session.startedAt)} | '
-                      '${session.duration.inMinutes}분 | '
-                      '${(session.distanceMeters / 1000).toStringAsFixed(1)} km',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.black54,
-                          ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
+              height: 142,
+              child: featuredPhoto == null
+                  ? IgnorePointer(
+                      child: WalkMapPreview(
+                        session: session,
+                        height: 142,
+                        showAttribution: false,
+                        showPhotoMarkers: false,
+                      ),
+                    )
+                  : Row(
                       children: [
-                        const Icon(Icons.photo_camera_outlined, size: 18),
-                        const SizedBox(width: 4),
-                        Text('${session.photos.length}'),
-                        const Spacer(),
-                        const Icon(Icons.chevron_right_rounded),
+                        Expanded(
+                          flex: 3,
+                          child: IgnorePointer(
+                            child: WalkMapPreview(
+                              session: session,
+                              height: 142,
+                              showAttribution: false,
+                              showPhotoMarkers: false,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: _FeaturedPhotoPreview(photo: featuredPhoto),
+                        ),
                       ],
                     ),
-                  ],
-                ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          session.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${clock.format(session.startedAt)} | '
+                          '${session.duration.inMinutes}분 | '
+                          '${(session.distanceMeters / 1000).toStringAsFixed(1)} km',
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.black54,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Row(
+                    children: [
+                      const Icon(Icons.photo_camera_outlined, size: 18),
+                      const SizedBox(width: 4),
+                      Text('${session.photos.length}'),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.chevron_right_rounded),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _FeaturedPhotoPreview extends StatelessWidget {
+  const _FeaturedPhotoPreview({required this.photo});
+
+  final WalkPhoto? photo;
+
+  @override
+  Widget build(BuildContext context) {
+    final photo = this.photo;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (photo == null)
+          const ColoredBox(
+            color: Color(0xFFE5E0D6),
+            child: Center(
+              child: Icon(Icons.photo_outlined, color: Colors.black45),
+            ),
+          )
+        else
+          WalkPhotoImage(imageUrl: photo.imageUrl, fit: BoxFit.cover),
+        if (photo != null)
+          Positioned(
+            left: 8,
+            top: 8,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.58),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                child: Text(
+                  '대표',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    height: 1,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -691,20 +820,23 @@ class _DarkMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(
           value,
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: Colors.white,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: const Color(0xFF151713),
                 fontWeight: FontWeight.w900,
               ),
         ),
+        const SizedBox(width: 4),
         Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.white70,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.black54,
+                height: 1.3,
               ),
         ),
       ],

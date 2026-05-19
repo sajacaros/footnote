@@ -1,5 +1,7 @@
 import 'package:latlong2/latlong.dart';
 
+const Object _copyWithUnset = Object();
+
 class WalkPhoto {
   const WalkPhoto({
     required this.id,
@@ -43,6 +45,7 @@ class WalkSession {
     required this.points,
     required this.photos,
     this.note,
+    this.featuredPhotoId,
   });
 
   final String id;
@@ -52,6 +55,7 @@ class WalkSession {
   final List<TrackPoint> points;
   final List<WalkPhoto> photos;
   final String? note;
+  final String? featuredPhotoId;
 
   Duration get duration => endedAt.difference(startedAt);
 
@@ -90,6 +94,25 @@ class WalkSession {
 
   List<LatLng> get route => points.map((point) => point.position).toList();
 
+  WalkPhoto? get featuredPhoto {
+    if (photos.isEmpty) {
+      return null;
+    }
+
+    final featuredId = featuredPhotoId;
+    if (featuredId == null) {
+      return photos.first;
+    }
+
+    for (final photo in photos) {
+      if (photo.id == featuredId) {
+        return photo;
+      }
+    }
+
+    return photos.first;
+  }
+
   WalkSession copyWith({
     String? id,
     String? title,
@@ -97,7 +120,8 @@ class WalkSession {
     DateTime? endedAt,
     List<TrackPoint>? points,
     List<WalkPhoto>? photos,
-    String? note,
+    Object? note = _copyWithUnset,
+    Object? featuredPhotoId = _copyWithUnset,
   }) {
     return WalkSession(
       id: id ?? this.id,
@@ -106,7 +130,10 @@ class WalkSession {
       endedAt: endedAt ?? this.endedAt,
       points: points ?? this.points,
       photos: photos ?? this.photos,
-      note: note ?? this.note,
+      note: note == _copyWithUnset ? this.note : note as String?,
+      featuredPhotoId: featuredPhotoId == _copyWithUnset
+          ? this.featuredPhotoId
+          : featuredPhotoId as String?,
     );
   }
 }

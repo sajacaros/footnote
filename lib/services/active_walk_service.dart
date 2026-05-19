@@ -36,6 +36,8 @@ class ActiveWalkService extends ChangeNotifier {
   DateTime? get startedAt => _startedAt;
   List<TrackPoint> get points => List.unmodifiable(_points);
   List<WalkPhoto> get photos => List.unmodifiable(_photos);
+  int get pointCount => _points.length;
+  DateTime? get lastPointAt => _points.isEmpty ? null : _points.last.recordedAt;
 
   Duration get elapsed {
     final started = _startedAt;

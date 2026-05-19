@@ -44,6 +44,7 @@ class WalkRepository {
           startedAt: DateTime.parse(row['started_at'] as String),
           endedAt: DateTime.parse(row['ended_at'] as String),
           note: row['note'] as String?,
+          featuredPhotoId: row['featured_photo_id'] as String?,
           points: pointRows.map(_pointFromRow).toList(),
           photos: photoRows.map(_photoFromRow).toList(),
         ),
@@ -64,6 +65,7 @@ class WalkRepository {
           'started_at': session.startedAt.toIso8601String(),
           'ended_at': session.endedAt.toIso8601String(),
           'note': session.note,
+          'featured_photo_id': session.featuredPhotoId,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
@@ -159,11 +161,46 @@ class WalkRepository {
     }
 
     final db = await _open();
-    final placeholders = List.filled(photoIds.length, '?').join(',');
-    await db.delete(
-      'walk_photos',
-      where: 'session_id = ? AND id IN ($placeholders)',
-      whereArgs: [sessionId, ...photoIds],
+    await db.transaction((txn) async {
+      final placeholders = List.filled(photoIds.length, '?').join(',');
+      await txn.delete(
+        'walk_photos',
+        where: 'session_id = ? AND id IN ($placeholders)',
+        whereArgs: [sessionId, ...photoIds],
+      );
+      await txn.update(
+        'walk_sessions',
+        {'featured_photo_id': null},
+        where: 'id = ? AND featured_photo_id IN ($placeholders)',
+        whereArgs: [sessionId, ...photoIds],
+      );
+    });
+  }
+
+  Future<void> setFeaturedPhoto(String sessionId, String? photoId) async {
+    final db = await _open();
+    await db.update(
+      'walk_sessions',
+      {'featured_photo_id': photoId},
+      where: 'id = ?',
+      whereArgs: [sessionId],
+    );
+  }
+
+  Future<void> updateSessionDetails({
+    required String sessionId,
+    required String title,
+    required String? note,
+  }) async {
+    final db = await _open();
+    await db.update(
+      'walk_sessions',
+      {
+        'title': title,
+        'note': note,
+      },
+      where: 'id = ?',
+      whereArgs: [sessionId],
     );
   }
 
@@ -176,7 +213,7 @@ class WalkRepository {
     final path = p.join(dbPath, 'footnote_walk.db');
     _database = await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE walk_sessions (
@@ -184,7 +221,8 @@ class WalkRepository {
             title TEXT NOT NULL,
             started_at TEXT NOT NULL,
             ended_at TEXT NOT NULL,
-            note TEXT
+            note TEXT,
+            featured_photo_id TEXT
           )
         ''');
         await db.execute('''
@@ -212,13 +250,21 @@ class WalkRepository {
           )
         ''');
       },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute(
+            'ALTER TABLE walk_sessions ADD COLUMN featured_photo_id TEXT',
+          );
+        }
+      },
     );
 
     return _database!;
   }
 
   Future<void> _seedIfEmpty(Database db) async {
-    final rows = await db.rawQuery('SELECT COUNT(*) AS count FROM walk_sessions');
+    final rows =
+        await db.rawQuery('SELECT COUNT(*) AS count FROM walk_sessions');
     final count = Sqflite.firstIntValue(rows) ?? 0;
     if (count > 0) {
       return;

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
@@ -76,6 +77,14 @@ class LocationTracker {
         accuracy: LocationAccuracy.best,
         distanceFilter: 0,
         intervalDuration: trackingInterval,
+        foregroundNotificationConfig: const ForegroundNotificationConfig(
+          notificationTitle: 'Footnote Walk',
+          notificationText: '산책 경로를 기록하는 중입니다.',
+          notificationChannelName: '산책 기록',
+          enableWakeLock: true,
+          setOngoing: true,
+          color: Color(0xFF1F8A70),
+        ),
       );
     }
 

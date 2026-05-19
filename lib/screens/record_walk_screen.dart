@@ -265,9 +265,28 @@ class _StatusPanel extends StatelessWidget {
                   color: Colors.white70,
                 ),
           ),
+          const SizedBox(height: 6),
+          Text(
+            _gpsStatusText(activeWalk),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.white70,
+                ),
+          ),
         ],
       ),
     );
+  }
+
+  String _gpsStatusText(ActiveWalkService activeWalk) {
+    final lastPointAt = activeWalk.lastPointAt;
+    if (lastPointAt == null) {
+      return 'GPS 포인트 ${activeWalk.pointCount}개';
+    }
+
+    final hh = lastPointAt.hour.toString().padLeft(2, '0');
+    final mm = lastPointAt.minute.toString().padLeft(2, '0');
+    final ss = lastPointAt.second.toString().padLeft(2, '0');
+    return 'GPS 포인트 ${activeWalk.pointCount}개 | 마지막 $hh:$mm:$ss';
   }
 
   String _formatDuration(Duration duration) {

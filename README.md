@@ -1,34 +1,55 @@
 # Footnote Walk
 
-Android-first Flutter app for recording dog walking sessions with GPS routes, photos, map history, GPX export, and shareable map images.
+산책의 경로, 사진, 메모를 한 번에 남기는 Android-first Flutter 앱입니다. GPS로 이동 경로를 기록하고, 산책 중 찍은 사진을 지도 위 위치와 함께 정리합니다.
 
-## Features
+<p align="center">
+  <img src="docs/images/home.png" alt="Footnote Walk home screen" width="260" />
+  <img src="docs/images/detail.png" alt="Footnote Walk detail screen" width="260" />
+</p>
 
-- Start and end a walking session
-- GPS route recording with local draft GPX updates
-- Recording continues when leaving the recording screen while the app process is alive
-- Add photos from the app camera during a session
-- Attach gallery photos taken during the session time window
-- Manage photo links after a session: attach or detach without deleting original files
-- Browse walks by recent timeline, monthly calendar, and weekly/monthly stats
-- View each walk on a simplified CARTO/OSM map with route and photo markers
-- Share GPX files
-- Share the currently visible map view as an image
-- Delete walk records while keeping original photo files
+## 주요 기능
 
-## Tech Stack
+- 2초 간격 GPS 기록으로 산책 경로 저장
+- 기록 중 화면을 벗어나도 Android foreground service로 위치 추적 유지
+- 산책별 거리, 시간, 사진 수 요약
+- 최근 기록, 월별 기록, 통계 화면 제공
+- 지도 위 이동 방향 표시
+- 상세 지도에서 경로에 맞춘 자동 확대/축소, 과도한 확대 제한
+- 사진 위치 마커와 사진 썸네일 표시
+- 대표사진 설정: 사용자가 지정한 사진 우선, 없으면 첫 번째 사진
+- 제목과 메모 편집
+- GPX 파일 공유
+- 현재 지도 화면 이미지 공유
+
+## 화면 구성
+
+### 홈
+
+홈에서는 오늘의 산책 요약과 최근 산책 기록을 바로 확인할 수 있습니다. 각 기록 카드는 이동 경로 지도와 대표사진을 함께 보여줍니다.
+
+- 사진이 있는 기록: `지도 + 대표사진`
+- 사진이 없는 기록: 지도 전체 표시
+- 카드나 지도 영역을 누르면 상세 화면으로 이동
+
+### 상세
+
+상세 화면은 이동 경로를 중심으로 구성되어 있습니다. 지도는 경로 전체가 보이도록 자동 조정되며, 같은 위치 근처에서 짧게 움직인 기록은 너무 확대되지 않도록 최대 줌을 제한합니다.
+
+사진은 산책 시간대와 위치를 기준으로 연결할 수 있고, 대표사진을 직접 지정할 수 있습니다.
+
+## 기술 스택
 
 - Flutter / Dart
-- Android target
+- Android
 - `flutter_map` with CARTO Positron tiles based on OpenStreetMap data
-- `geolocator` for GPS
+- `geolocator` for GPS tracking
 - `image_picker` for camera capture
-- `photo_manager` for time-window gallery photo lookup
-- `media_store_plus` for saving app-captured photos to `Pictures/Footnote Walk`
+- `photo_manager` for gallery photo lookup
+- `media_store_plus` for saving app-captured photos
 - `sqflite` for local persistence
 - `share_plus` for GPX and image sharing
 
-## Project Structure
+## 프로젝트 구조
 
 ```text
 lib/
@@ -52,9 +73,9 @@ lib/
     walk_photo_image.dart
 ```
 
-## Data Model
+## 데이터
 
-The app uses a local SQLite database:
+앱은 로컬 SQLite 데이터베이스를 사용합니다.
 
 ```text
 walk_sessions
@@ -62,33 +83,11 @@ track_points
 walk_photos
 ```
 
-Photos are not stored as blobs in SQLite. The DB stores photo paths and metadata only. Original photo files stay in Android gallery storage or wherever the user selected them from.
+사진 원본은 SQLite에 저장하지 않습니다. DB에는 사진 경로와 메타데이터만 저장하고, 원본 파일은 Android 갤러리 또는 사용자가 선택한 위치에 남습니다.
 
-## Photo Behavior
+## Android 권한
 
-- Photos taken inside the app are saved through Android MediaStore under `Pictures/Footnote Walk`.
-- Photos selected from gallery are linked to the session by file path.
-- Deleting a walk removes only DB records, not original image files.
-- If a linked photo is deleted from the gallery, the app shows a missing-photo placeholder and lets the user remove the broken link.
-
-## GPX
-
-GPX export includes:
-
-- route track points as `trk/trkseg/trkpt`
-- linked photos as `wpt` waypoints
-
-Active sessions also write a draft GPX file in app documents storage.
-
-## Android Setup
-
-Required manifest permissions are already included in:
-
-```text
-android/app/src/main/AndroidManifest.xml
-```
-
-Relevant permissions:
+주요 권한은 `android/app/src/main/AndroidManifest.xml`에 포함되어 있습니다.
 
 ```xml
 ACCESS_FINE_LOCATION
@@ -101,9 +100,10 @@ READ_EXTERNAL_STORAGE
 WRITE_EXTERNAL_STORAGE
 FOREGROUND_SERVICE
 FOREGROUND_SERVICE_LOCATION
+WAKE_LOCK
 ```
 
-## Run
+## 실행
 
 ```powershell
 $env:Path="C:\Users\dukim\tools\flutter\bin;$env:Path"
@@ -113,25 +113,13 @@ flutter test
 flutter run -d <device-id>
 ```
 
-Build and install debug APK:
+릴리스 APK 빌드:
 
 ```powershell
-flutter build apk --debug
-adb install -r build\app\outputs\flutter-apk\app-debug.apk
+flutter build apk --release
 ```
 
-## Current Limitations
+## 참고
 
-- Background tracking is not yet implemented as a native Android foreground service.
-- Tracking continues after leaving the recording screen only while the Flutter app process remains alive.
-- Gallery photo matching depends on Android media timestamps and user-granted photo permissions.
-- Map image sharing captures the currently visible detail map area, not a polished share card.
-- Tile usage should move to a production tile provider before public release.
-
-## Next Steps
-
-- Android foreground service for reliable screen-off/background recording
-- Better GPS smoothing and noisy point filtering
-- Optional EXIF GPS support for photo marker placement
-- Backend sync with local-first, session-level upload
-- Release signing configuration
+- 지도 타일은 현재 CARTO/OSM 기반 타일을 사용합니다. 공개 배포 시에는 사용량 정책에 맞는 프로덕션 타일 제공자 검토가 필요합니다.
+- 위치 정확도는 기기 GPS, 절전 정책, 주변 환경의 영향을 받습니다.
