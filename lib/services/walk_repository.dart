@@ -15,6 +15,7 @@ class WalkRepository {
   Future<List<WalkSession>> loadSessions() async {
     final db = await _open();
     await _seedIfEmpty(db);
+    await _normalizeMockSessionDates(db);
 
     final sessionRows = await db.query(
       'walk_sessions',
@@ -272,6 +273,51 @@ class WalkRepository {
 
     for (final session in MockWalkRepository.loadSessions()) {
       await saveSession(session);
+    }
+  }
+
+  Future<void> _normalizeMockSessionDates(Database db) async {
+    for (final session in MockWalkRepository.loadSessions()) {
+      final rows = await db.query(
+        'walk_sessions',
+        columns: ['id'],
+        where: 'id = ?',
+        whereArgs: [session.id],
+        limit: 1,
+      );
+      if (rows.isEmpty) {
+        continue;
+      }
+
+      await db.transaction((txn) async {
+        await txn.update(
+          'walk_sessions',
+          {
+            'started_at': session.startedAt.toIso8601String(),
+            'ended_at': session.endedAt.toIso8601String(),
+          },
+          where: 'id = ?',
+          whereArgs: [session.id],
+        );
+
+        for (var index = 0; index < session.points.length; index += 1) {
+          await txn.update(
+            'track_points',
+            {'recorded_at': session.points[index].recordedAt.toIso8601String()},
+            where: 'session_id = ? AND sequence = ?',
+            whereArgs: [session.id, index],
+          );
+        }
+
+        for (final photo in session.photos) {
+          await txn.update(
+            'walk_photos',
+            {'taken_at': photo.takenAt.toIso8601String()},
+            where: 'id = ?',
+            whereArgs: [photo.id],
+          );
+        }
+      });
     }
   }
 

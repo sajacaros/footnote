@@ -140,30 +140,13 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
                   ),
                 ],
                 const SizedBox(height: 24),
-                Text(
-                  '사진 위치',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 150,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemBuilder: (context, index) {
-                      final photo = _session.photos[index];
-                      return _PhotoThumb(
-                        photo: photo,
-                        isFeatured: _session.featuredPhoto?.id == photo.id,
-                        onTap: () => _showPhoto(context, photo),
-                        onRemove: () => _removePhotoLink(photo),
-                        onSetFeatured: () => _setFeaturedPhoto(photo),
-                      );
-                    },
-                    separatorBuilder: (_, __) => const SizedBox(width: 12),
-                    itemCount: _session.photos.length,
-                  ),
+                _PhotoGallerySection(
+                  session: _session,
+                  addingPhotos: _addingPhotos,
+                  onAddPhotos: () => _addSessionPhotos(),
+                  onPhotoTap: (photo) => _showPhoto(context, photo),
+                  onRemovePhoto: _removePhotoLink,
+                  onSetFeatured: _setFeaturedPhoto,
                 ),
               ]),
             ),
@@ -647,6 +630,150 @@ class _StatBlock extends StatelessWidget {
               ),
         ),
       ],
+    );
+  }
+}
+
+class _PhotoGallerySection extends StatelessWidget {
+  const _PhotoGallerySection({
+    required this.session,
+    required this.addingPhotos,
+    required this.onAddPhotos,
+    required this.onPhotoTap,
+    required this.onRemovePhoto,
+    required this.onSetFeatured,
+  });
+
+  final WalkSession session;
+  final bool addingPhotos;
+  final VoidCallback onAddPhotos;
+  final ValueChanged<WalkPhoto> onPhotoTap;
+  final ValueChanged<WalkPhoto> onRemovePhoto;
+  final ValueChanged<WalkPhoto> onSetFeatured;
+
+  @override
+  Widget build(BuildContext context) {
+    final photos = session.photos;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '산책 사진',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+            ),
+            _PhotoCountPill(count: photos.length),
+            const SizedBox(width: 8),
+            IconButton.filledTonal(
+              tooltip: '사진 추가',
+              style: IconButton.styleFrom(
+                minimumSize: const Size(44, 44),
+                fixedSize: const Size(44, 44),
+                padding: EdgeInsets.zero,
+              ),
+              onPressed: addingPhotos ? null : onAddPhotos,
+              icon: addingPhotos
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.add_photo_alternate_outlined),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (photos.isEmpty)
+          _EmptyPhotoGallery(onAddPhotos: addingPhotos ? null : onAddPhotos)
+        else
+          SizedBox(
+            height: 150,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemBuilder: (context, index) {
+                final photo = photos[index];
+                return _PhotoThumb(
+                  photo: photo,
+                  isFeatured: session.featuredPhoto?.id == photo.id,
+                  onTap: () => onPhotoTap(photo),
+                  onRemove: () => onRemovePhoto(photo),
+                  onSetFeatured: () => onSetFeatured(photo),
+                );
+              },
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemCount: photos.length,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _PhotoCountPill extends StatelessWidget {
+  const _PhotoCountPill({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF6F1),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Text(
+          '$count장',
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: const Color(0xFF1F6F5B),
+                fontWeight: FontWeight.w800,
+              ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyPhotoGallery extends StatelessWidget {
+  const _EmptyPhotoGallery({required this.onAddPhotos});
+
+  final VoidCallback? onAddPhotos;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE5E0D6)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            const Icon(Icons.photo_outlined, color: Colors.black45),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '아직 사진이 없습니다',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.black54,
+                    ),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: onAddPhotos,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('추가'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

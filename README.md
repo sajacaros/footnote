@@ -113,11 +113,13 @@ flutter test
 flutter run -d <device-id>
 ```
 
-릴리스 APK 빌드:
+개발 중 기기 배포:
 
 ```powershell
-flutter build apk --release
+.\scripts\deploy-release.ps1
 ```
+
+이 스크립트는 `adb install -r`로 APK만 덮어 설치합니다. 앱 데이터와 로컬 SQLite DB를 유지하려면 개발 중에는 `flutter install --release` 대신 이 스크립트를 사용하세요.
 
 ## 참고
 

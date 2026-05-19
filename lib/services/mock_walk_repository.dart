@@ -4,13 +4,11 @@ import '../models/walk_models.dart';
 
 class MockWalkRepository {
   static List<WalkSession> loadSessions() {
-    final now = DateTime.now();
-
     return [
       _session(
         id: 'walk-001',
         title: '점심 햇살 산책',
-        startedAt: DateTime(now.year, now.month, now.day, 12, 7),
+        startedAt: DateTime(2026, 5, 19, 12, 7),
         minutes: 54,
         note: '카페 골목을 지나 공원 한 바퀴. 사진을 많이 남긴 날.',
         base: const LatLng(37.5664, 126.9785),
@@ -26,7 +24,7 @@ class MockWalkRepository {
       _session(
         id: 'walk-002',
         title: '퇴근 후 골목길',
-        startedAt: now.subtract(const Duration(days: 1, hours: 3)),
+        startedAt: DateTime(2026, 5, 18, 20, 54),
         minutes: 38,
         note: '짧지만 냄새 맡는 시간이 길었던 산책.',
         base: const LatLng(37.5648, 126.9810),
@@ -41,7 +39,7 @@ class MockWalkRepository {
       _session(
         id: 'walk-003',
         title: '주말 공원 루프',
-        startedAt: now.subtract(const Duration(days: 4, hours: 1)),
+        startedAt: DateTime(2026, 5, 15, 22, 43),
         minutes: 72,
         note: '긴 산책. 중간에 벤치에서 쉬었다.',
         base: const LatLng(37.5701, 126.9768),
