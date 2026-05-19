@@ -53,7 +53,8 @@ class ActiveWalkService extends ChangeNotifier {
     const calculator = Distance();
     var meters = 0.0;
     for (var index = 1; index < _points.length; index += 1) {
-      meters += calculator(_points[index - 1].position, _points[index].position);
+      meters +=
+          calculator(_points[index - 1].position, _points[index].position);
     }
     return meters;
   }
@@ -222,9 +223,8 @@ class ActiveWalkService extends ChangeNotifier {
     }
 
     if (_points.isNotEmpty) {
-      const calculator = Distance();
-      final movedMeters = calculator(_points.last.position, point.position);
-      if (movedMeters < 4) {
+      final elapsed = point.recordedAt.difference(_points.last.recordedAt);
+      if (elapsed < LocationTracker.trackingInterval) {
         return;
       }
     }

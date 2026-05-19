@@ -1,11 +1,14 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../models/walk_models.dart';
 
 class LocationTracker {
+  static const trackingInterval = Duration(seconds: 2);
+
   StreamSubscription<Position>? _subscription;
 
   Future<bool> ensurePermission() async {
@@ -43,13 +46,8 @@ class LocationTracker {
       return false;
     }
 
-    const settings = LocationSettings(
-      accuracy: LocationAccuracy.best,
-      distanceFilter: 8,
-    );
-
     _subscription = Geolocator.getPositionStream(
-      locationSettings: settings,
+      locationSettings: _trackingSettings(),
     ).listen((position) {
       onPoint(_pointFromPosition(position));
     });
@@ -69,6 +67,21 @@ class LocationTracker {
       elevation: position.altitude,
       accuracy: position.accuracy,
       speed: position.speed,
+    );
+  }
+
+  LocationSettings _trackingSettings() {
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return AndroidSettings(
+        accuracy: LocationAccuracy.best,
+        distanceFilter: 0,
+        intervalDuration: trackingInterval,
+      );
+    }
+
+    return const LocationSettings(
+      accuracy: LocationAccuracy.best,
+      distanceFilter: 0,
     );
   }
 }
