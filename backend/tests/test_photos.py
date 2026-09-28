@@ -127,3 +127,62 @@ async def test_recreate_pending_photo_updates_size(client, admin):
     done = await client.post(f"/v1/photos/{body['id']}/complete", headers=headers)
     assert done.status_code == 200, done.text
     assert done.json()["size_bytes"] == len(smaller)
+
+
+async def test_deleted_session_hides_photos_then_purges_after_retention(client, admin):
+    from datetime import timedelta
+
+    from sqlalchemy import select
+
+    from app import storage as app_storage
+    from app.db import SessionLocal
+    from app.models import TrackPoint, WalkPhoto, WalkSession
+    from app.purge import purge_deleted
+
+    account = await signup(client, admin)
+    headers = account["headers"]
+    session_id = await _session(client, headers)
+    await client.post(
+        f"/v1/sessions/{session_id}/points:batch",
+        json={
+            "points": [
+                {"seq": 0, "recorded_at": START.isoformat(), "lat": 37.5665, "lng": 126.978}
+            ]
+        },
+        headers=headers,
+    )
+    body = _photo_body(session_id)
+    created = (await client.post("/v1/photos", json=body, headers=headers)).json()
+    async with httpx.AsyncClient() as storage:
+        for variant, data in (("display", DISPLAY), ("thumb", THUMB)):
+            target = created["uploads"][variant]
+            await storage.put(target["url"], content=data, headers=target["headers"])
+    await client.post(f"/v1/photos/{body['id']}/complete", headers=headers)
+
+    deleted = await client.delete(f"/v1/sessions/{session_id}", headers=headers)
+    assert deleted.status_code == 204
+    # 지운 세션의 사진은 id를 알아도 받을 수 없다.
+    photo = await client.get(f"/v1/photos/{body['id']}", headers=headers)
+    assert photo.status_code == 404
+
+    key = app_storage.photo_key(
+        uuid.UUID(account["user"]["id"]), uuid.UUID(body["id"]), "display", "image/jpeg"
+    )
+    photo_id = uuid.UUID(body["id"])
+    sid = uuid.UUID(session_id)
+
+    async with SessionLocal() as db:
+        # 보관 기간 안에는 복구할 수 있게 남겨 둔다.
+        await purge_deleted(db, now=datetime.now(UTC) + timedelta(days=29))
+        assert await db.get(WalkSession, sid) is not None
+        assert await app_storage.object_size(key) == len(DISPLAY)
+
+        await purge_deleted(db, now=datetime.now(UTC) + timedelta(days=31))
+        db.expire_all()
+        assert await db.get(WalkSession, sid) is None
+        assert await db.get(WalkPhoto, photo_id) is None
+        points = await db.scalars(
+            select(TrackPoint).where(TrackPoint.session_id == sid)
+        )
+        assert list(points) == []
+    assert await app_storage.object_size(key) is None

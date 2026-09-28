@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select, text
+from sqlalchemy import select, text, update
 from sqlalchemy.dialects.postgresql import insert
 
 from ..deps import CurrentUser, DbSession
@@ -113,8 +113,16 @@ async def update_session(
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_session(session_id: uuid.UUID, db: DbSession, user: CurrentUser) -> None:
+    """보관 기간(기본 30일) 동안은 숨겨만 두고, 그 뒤 purge가 파일까지 지운다."""
     session = await _owned_session(db, user, session_id)
-    session.deleted_at = datetime.now(UTC)
+    now = datetime.now(UTC)
+    session.deleted_at = now
+    # 사진도 함께 숨긴다. 그러지 않으면 사진 id로 계속 받을 수 있다.
+    await db.execute(
+        update(WalkPhoto)
+        .where(WalkPhoto.session_id == session_id, WalkPhoto.deleted_at.is_(None))
+        .values(deleted_at=now)
+    )
     await db.commit()
 
 

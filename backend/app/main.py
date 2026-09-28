@@ -1,10 +1,11 @@
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, Response
 
-from . import setup_code, storage
+from . import purge, setup_code, storage
 from .config import get_settings
 from .db import SessionLocal
 from .gzip_request import GzipRequestMiddleware
@@ -22,7 +23,9 @@ async def lifespan(app: FastAPI):
     async with SessionLocal() as db:
         if not await auth.admin_exists(db):
             setup_code.issue()
+    purger = asyncio.create_task(purge.run_forever())
     yield
+    purger.cancel()
 
 
 app = FastAPI(title="Footnote Walk API", version="0.1.0", lifespan=lifespan)

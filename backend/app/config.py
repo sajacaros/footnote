@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # gzip 요청 본문을 풀었을 때 허용하는 최대 크기.
     max_request_bytes: int = 20 * 1024 * 1024
 
+    # 앱에서 지운 기록을 복구할 수 있게 남겨 두는 기간. 지나면 파일까지 지운다.
+    deleted_retention_days: int = 30
+
     @field_validator("jwt_secret")
     @classmethod
     def _long_enough(cls, value: str) -> str:
