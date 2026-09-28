@@ -59,6 +59,31 @@ class _RecordWalkScreenState extends State<RecordWalkScreen> {
             onPressed: () => setState(() => _showMap = !_showMap),
             icon: Icon(_showMap ? Icons.map_rounded : Icons.route_rounded),
           ),
+          // 버리기는 종료 버튼과 떨어진 메뉴 안에 둔다. 잘못 눌러 기록을 잃지 않게 하기 위해서다.
+          PopupMenuButton<void>(
+            tooltip: '더보기',
+            icon: const Icon(Icons.more_vert_rounded),
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                onTap: _confirmDiscard,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.delete_outline_rounded,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '이 산책 버리기',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       body: SafeArea(
@@ -98,27 +123,33 @@ class _RecordWalkScreenState extends State<RecordWalkScreen> {
               const SizedBox(height: 20),
             ],
             _PhotoSection(photos: _activeWalk.photos),
-            const SizedBox(height: 24),
-            OutlinedButton.icon(
-              onPressed: _activeWalk.isSaving ? null : _finishWalk,
-              icon: _activeWalk.isSaving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.stop_rounded),
-              label: const Text('산책 종료하고 저장'),
-            ),
-            const SizedBox(height: 10),
-            TextButton(
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.error,
-              ),
-              onPressed: _confirmDiscard,
-              child: const Text('이 산책 버리기'),
-            ),
           ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
+          child: FilledButton.icon(
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(58),
+              backgroundColor: AppColors.brandStrong,
+              textStyle:
+                  const TextStyle(fontFamily: kDisplayFont, fontSize: 19),
+            ),
+            onPressed: _activeWalk.isSaving ? null : _finishWalk,
+            icon: _activeWalk.isSaving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.stop_rounded),
+            label: const Text('산책 종료하고 저장'),
+          ),
         ),
       ),
     );
