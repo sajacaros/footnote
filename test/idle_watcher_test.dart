@@ -20,7 +20,9 @@ void main() {
   test('prompts after 10 minutes still and ends after 20 at the stop time', () {
     final watcher = IdleWatcher();
     watcher.addPoint(_point(0));
-    watcher.addPoint(_point(5, meters: 100));
+    for (final meters in [96.0, 98.0, 100.0]) {
+      watcher.addPoint(_point(5, meters: meters));
+    }
     // GPS 흔들림은 반경 안이라 멈춘 것으로 본다.
     watcher.addPoint(_point(8, meters: 125));
 
@@ -36,6 +38,8 @@ void main() {
     watcher.addPoint(_point(0));
     expect(watcher.evaluate(_at(10)), IdleAction.prompt);
 
+    expect(watcher.addPoint(_point(12, meters: 50)), isFalse);
+    expect(watcher.addPoint(_point(12, meters: 55)), isFalse);
     expect(watcher.addPoint(_point(12, meters: 60)), isTrue);
     expect(watcher.prompted, isFalse);
     expect(watcher.evaluate(_at(21)), IdleAction.none);
@@ -59,6 +63,18 @@ void main() {
     final watcher = IdleWatcher();
     watcher.addPoint(_point(0));
     expect(watcher.addPoint(_point(3, meters: 80, accuracy: 60)), isFalse);
+    expect(watcher.evaluate(_at(10)), IdleAction.prompt);
+  });
+
+  test('a single jump outside the radius is not movement', () {
+    final watcher = IdleWatcher();
+    watcher.addPoint(_point(0));
+    expect(watcher.addPoint(_point(3, meters: 80)), isFalse);
+    expect(watcher.addPoint(_point(3, meters: 5)), isFalse);
+    // 돌아온 뒤에는 연속 횟수도 처음부터 센다.
+    expect(watcher.addPoint(_point(4, meters: 80)), isFalse);
+    expect(watcher.addPoint(_point(4, meters: 85)), isFalse);
+    expect(watcher.addPoint(_point(4, meters: 3)), isFalse);
     expect(watcher.evaluate(_at(10)), IdleAction.prompt);
   });
 

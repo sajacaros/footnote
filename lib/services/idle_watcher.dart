@@ -6,7 +6,8 @@ enum IdleAction { none, prompt, end }
 
 /// 산책 중 한자리에 오래 머무는지 지켜본다. 시간은 밖에서 넣어 주므로 테스트할 수 있다.
 ///
-/// - 기준점에서 [radiusMeters] 밖으로 나가면 움직인 것으로 보고 처음부터 다시 센다.
+/// - 포인트가 [movePoints]개 연달아 기준점에서 [radiusMeters] 밖에 있으면 움직인 것으로
+///   보고 처음부터 다시 센다. 한 번 튄 위치로는 움직였다고 보지 않는다.
 ///   GPS가 끊겨 포인트가 안 들어오는 동안은 멈춘 것으로 친다.
 /// - 멈춘 지 [promptAfter]가 지나면 묻고, [endAfter]가 지나면 끝낸다.
 /// - 사용자가 계속하겠다고 하면 그때부터 다시 센다.
@@ -16,9 +17,11 @@ class IdleWatcher {
     this.radiusMeters = 40,
     this.promptAfter = const Duration(minutes: 10),
     this.endAfter = const Duration(minutes: 20),
+    this.movePoints = 3,
   });
 
   final double radiusMeters;
+  final int movePoints;
   final Duration promptAfter;
   final Duration endAfter;
 
@@ -28,6 +31,8 @@ class IdleWatcher {
   DateTime? _stillSince;
   DateTime? _confirmedAt;
   bool _prompted = false;
+  // 기준점 반경 밖에 연달아 찍힌 포인트 수.
+  int _outside = 0;
 
   bool get prompted => _prompted;
 
@@ -57,6 +62,11 @@ class IdleWatcher {
       return false;
     }
     if (_distance(anchor, point.position) <= radiusMeters) {
+      _outside = 0;
+      return false;
+    }
+    _outside += 1;
+    if (_outside < movePoints) {
       return false;
     }
     _reset(point);
@@ -90,5 +100,6 @@ class IdleWatcher {
     _stillSince = point.recordedAt;
     _confirmedAt = null;
     _prompted = false;
+    _outside = 0;
   }
 }
