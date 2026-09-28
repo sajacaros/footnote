@@ -93,6 +93,8 @@ class WalkSession(Base):
     route = mapped_column(Geometry, nullable=True)
     distance_m: Mapped[float | None] = mapped_column(Float)
     point_count: Mapped[int] = mapped_column(Integer, default=0)
+    # 앱이 Health Connect에서 읽은 산책 시간대 걸음 수. 만보기 앱이 늦게 쓰면 나중에 바뀐다.
+    steps: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

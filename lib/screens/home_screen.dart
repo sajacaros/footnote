@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../models/walk_models.dart';
 import '../services/active_walk_service.dart';
+import '../services/step_service.dart';
 import '../services/sync_service.dart';
 import '../services/walk_reminder_service.dart';
 import '../services/walk_repository.dart';
@@ -138,6 +139,11 @@ class _HomeScreenState extends State<HomeScreen> {
       _sessions = sessions;
       _loading = false;
     });
+    // 만보기 앱이 늦게 쓴 걸음 수를 반영한다. 바뀌면 sync_rev가 올라 함께 올라간다.
+    final refreshed = await StepService.instance.refreshRecent(sessions);
+    if (refreshed != null && mounted) {
+      setState(() => _sessions = refreshed);
+    }
     // 기록이 바뀌었을 수 있는 시점마다 불린다. 보낼 게 없으면 네트워크를 쓰지 않는다.
     SyncService.instance.sync();
   }
@@ -730,7 +736,8 @@ class _WalkListTile extends StatelessWidget {
                         Text(
                           '${clock.format(session.startedAt)} | '
                           '${session.duration.inMinutes}분 | '
-                          '${(session.distanceMeters / 1000).toStringAsFixed(1)} km',
+                          '${(session.distanceMeters / 1000).toStringAsFixed(1)} km'
+                          '${session.steps == null ? '' : ' | ${formatSteps(session.steps!)}걸음'}',
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
                                     color: AppColors.inkMuted,

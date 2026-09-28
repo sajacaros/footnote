@@ -62,11 +62,17 @@ class MetricValue extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          value,
-          style: textTheme.headlineSmall?.copyWith(
-            color: onDark ? Colors.white : AppColors.ink,
-            fontWeight: FontWeight.w800,
+        // 칸이 좁아도 줄바꿈하지 않고 글자를 줄인다(예: 걸음 수 12,345).
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            value,
+            maxLines: 1,
+            style: textTheme.headlineSmall?.copyWith(
+              color: onDark ? Colors.white : AppColors.ink,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
         Text(

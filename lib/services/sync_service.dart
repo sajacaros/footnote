@@ -148,6 +148,7 @@ class SyncService extends ChangeNotifier {
         'note': session.note,
         'featured_photo_id':
             featured != null && _uuid.hasMatch(featured) ? featured : null,
+        'steps': session.steps,
       },
     );
 

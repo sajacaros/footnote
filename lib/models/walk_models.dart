@@ -46,6 +46,7 @@ class WalkSession {
     required this.photos,
     this.note,
     this.featuredPhotoId,
+    this.steps,
   });
 
   final String id;
@@ -56,6 +57,9 @@ class WalkSession {
   final List<WalkPhoto> photos;
   final String? note;
   final String? featuredPhotoId;
+
+  /// Health Connect에서 읽은 산책 시간대의 걸음 수. 모르면 null.
+  final int? steps;
 
   Duration get duration => endedAt.difference(startedAt);
 
@@ -122,6 +126,7 @@ class WalkSession {
     List<WalkPhoto>? photos,
     Object? note = _copyWithUnset,
     Object? featuredPhotoId = _copyWithUnset,
+    Object? steps = _copyWithUnset,
   }) {
     return WalkSession(
       id: id ?? this.id,
@@ -134,6 +139,7 @@ class WalkSession {
       featuredPhotoId: featuredPhotoId == _copyWithUnset
           ? this.featuredPhotoId
           : featuredPhotoId as String?,
+      steps: steps == _copyWithUnset ? this.steps : steps as int?,
     );
   }
 }

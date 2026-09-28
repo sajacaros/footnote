@@ -11,7 +11,8 @@
 
 - 2초 간격 GPS 기록으로 산책 경로 저장
 - 기록 중 화면을 벗어나도 Android foreground service로 위치 추적 유지
-- 산책별 거리, 시간, 사진 수 요약
+- 산책별 거리, 시간, 걸음 수, 사진 수 요약
+- 걸음 수: Health Connect에서 산책 시간대의 걸음 수를 읽어 옴(삼성 헬스·토스 만보기 등과 같은 값)
 - 최근 기록, 월별 기록, 통계 화면 제공
 - 지도 위 이동 방향 표시
 - 상세 지도에서 경로에 맞춘 자동 확대/축소, 과도한 확대 제한
@@ -51,6 +52,7 @@
 - `sqflite` for local persistence
 - `share_plus` for GPX and image sharing
 - `flutter_local_notifications` + `timezone` for scheduled walk reminders
+- `health` for Health Connect step counts
 
 ## 프로젝트 구조
 

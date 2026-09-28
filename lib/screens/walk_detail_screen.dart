@@ -8,6 +8,7 @@ import '../models/walk_models.dart';
 import '../services/gpx_exporter.dart';
 import '../services/session_photo_finder.dart';
 import '../services/share_card_exporter.dart';
+import '../services/step_service.dart';
 import '../services/walk_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_surfaces.dart';
@@ -30,6 +31,14 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
   final GlobalKey _mapCaptureKey = GlobalKey();
   bool _addingPhotos = false;
   bool _sharingImage = false;
+  // 권한 확인이 끝나기 전에는 연결 안내를 띄우지 않는다.
+  bool _stepsConnected = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSteps();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -148,11 +157,21 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
                       label: '분',
                     ),
                     MetricValue(
+                      value: _session.steps == null
+                          ? '-'
+                          : formatSteps(_session.steps!),
+                      label: '걸음',
+                    ),
+                    MetricValue(
                       value: '${_session.photos.length}',
                       label: '사진',
                     ),
                   ],
                 ),
+                if (!_stepsConnected) ...[
+                  const SizedBox(height: 12),
+                  _StepsConnectCard(onConnect: _connectSteps),
+                ],
                 const SizedBox(height: 20),
                 Text(
                   '${DateFormat('yyyy.MM.dd HH:mm').format(_session.startedAt)} - '
@@ -182,6 +201,33 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _loadSteps({bool force = false}) async {
+    final connected = await StepService.instance.hasPermission();
+    final session = connected
+        ? await StepService.instance.refresh(_session, force: force)
+        : _session;
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _stepsConnected = connected;
+      _session = _session.copyWith(steps: session.steps);
+    });
+  }
+
+  Future<void> _connectSteps() async {
+    await StepService.instance.requestPermission();
+    await _loadSteps(force: true);
+    if (!mounted || !_stepsConnected || _session.steps != null) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('이 시간대의 걸음 기록이 없습니다. 만보기 앱의 Health Connect 연동을 확인해 주세요.'),
       ),
     );
   }
@@ -508,6 +554,40 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _StepsConnectCard extends StatelessWidget {
+  const _StepsConnectCard({required this.onConnect});
+
+  final VoidCallback onConnect;
+
+  @override
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.directions_walk_rounded,
+            color: AppColors.inkSubtle,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Health Connect를 연결하면 만보기 앱의 걸음 수를 가져옵니다',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.inkMuted,
+                  ),
+            ),
+          ),
+          TextButton(
+            onPressed: onConnect,
+            child: const Text('연결'),
+          ),
+        ],
       ),
     );
   }

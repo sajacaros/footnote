@@ -47,6 +47,7 @@ class WalkRepository {
           endedAt: _parseTs(row['ended_at'] as String),
           note: row['note'] as String?,
           featuredPhotoId: row['featured_photo_id'] as String?,
+          steps: row['steps'] as int?,
           points: pointRows.map(_pointFromRow).toList(),
           photos: photoRows.map(_photoFromRow).toList(),
         ),
@@ -66,6 +67,7 @@ class WalkRepository {
         'ended_at': _ts(session.endedAt),
         'note': session.note,
         'featured_photo_id': session.featuredPhotoId,
+        'steps': session.steps,
       };
       final updated = await txn.update(
         'walk_sessions',
@@ -233,6 +235,19 @@ class WalkRepository {
     });
   }
 
+  Future<void> updateSteps(String sessionId, int steps) async {
+    final db = await _open();
+    await db.transaction((txn) async {
+      await txn.update(
+        'walk_sessions',
+        {'steps': steps},
+        where: 'id = ?',
+        whereArgs: [sessionId],
+      );
+      await _touch(txn, sessionId);
+    });
+  }
+
   Future<List<WalkReminder>> loadReminders() async {
     final db = await _open();
     final rows = await db.query(
@@ -279,7 +294,7 @@ class WalkRepository {
     final path = p.join(dbPath, 'footnote_walk.db');
     _database = await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE walk_sessions (
@@ -288,7 +303,8 @@ class WalkRepository {
             started_at TEXT NOT NULL,
             ended_at TEXT NOT NULL,
             note TEXT,
-            featured_photo_id TEXT
+            featured_photo_id TEXT,
+            steps INTEGER
           )
         ''');
         await db.execute('''
@@ -329,6 +345,10 @@ class WalkRepository {
         }
         if (oldVersion < 4) {
           await _addSyncSchema(db);
+        }
+        if (oldVersion < 5) {
+          await db
+              .execute('ALTER TABLE walk_sessions ADD COLUMN steps INTEGER');
         }
       },
     );

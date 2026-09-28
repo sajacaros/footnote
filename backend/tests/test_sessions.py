@@ -97,6 +97,28 @@ async def test_finish_reports_gap(client, admin):
     assert finish.json()["detail"]["last_acked_seq"] == 9
 
 
+async def test_steps_can_be_set_and_updated(client, admin):
+    account = await signup(client, admin)
+    headers = account["headers"]
+    session_id = await _create_session(client, headers)
+
+    created = await client.get(f"/v1/sessions/{session_id}", headers=headers)
+    assert created.json()["steps"] is None
+
+    # 만보기 앱이 늦게 기록하면 앱이 더 큰 값으로 다시 보낸다.
+    for steps in (1200, 1350):
+        response = await client.patch(
+            f"/v1/sessions/{session_id}", json={"steps": steps}, headers=headers
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["steps"] == steps
+
+    negative = await client.patch(
+        f"/v1/sessions/{session_id}", json={"steps": -1}, headers=headers
+    )
+    assert negative.status_code == 422
+
+
 async def test_naive_datetime_is_rejected(client, admin):
     account = await signup(client, admin)
     response = await client.post(

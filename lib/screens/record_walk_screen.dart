@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/walk_models.dart';
 import '../services/active_walk_service.dart';
 import '../services/session_photo_finder.dart';
+import '../services/step_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_surfaces.dart';
 import '../widgets/session_photo_manager_sheet.dart';
@@ -27,7 +28,7 @@ class _RecordWalkScreenState extends State<RecordWalkScreen> {
   void initState() {
     super.initState();
     _activeWalk.addListener(_refresh);
-    _activeWalk.start();
+    _startWalk();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _refresh());
   }
 
@@ -119,6 +120,12 @@ class _RecordWalkScreenState extends State<RecordWalkScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _startWalk() async {
+    await _activeWalk.start();
+    // 위치 권한 요청이 끝난 뒤에 묻는다. 두 권한 화면이 겹치지 않게 하기 위해서다.
+    await StepService.instance.askOnce();
   }
 
   void _refresh() {

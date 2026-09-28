@@ -11,6 +11,7 @@ import 'gpx_exporter.dart';
 import 'location_tracker.dart';
 import 'photo_storage.dart';
 import 'session_photo_finder.dart';
+import 'step_service.dart';
 import 'walk_repository.dart';
 
 class ActiveWalkService extends ChangeNotifier {
@@ -170,7 +171,15 @@ class ActiveWalkService extends ChangeNotifier {
     await _tracker.stop();
     _tracking = false;
 
-    final session = _snapshot(endedAt: DateTime.now());
+    var session = _snapshot(endedAt: DateTime.now());
+    // 만보기 앱이 아직 마지막 몇 분을 쓰지 않았을 수 있다. 목록·상세를 열 때 다시 읽는다.
+    final steps = await StepService.instance.stepsBetween(
+      session.startedAt,
+      session.endedAt,
+    );
+    if (steps != null && steps > 0) {
+      session = session.copyWith(steps: steps);
+    }
     await WalkRepository.instance.saveSession(session);
     await GpxExporter.writeActiveDraft(session);
 

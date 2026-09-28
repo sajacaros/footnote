@@ -96,6 +96,7 @@ class SessionUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     note: str | None = None
     featured_photo_id: uuid.UUID | None = None
+    steps: int | None = Field(default=None, ge=0)
 
 
 class PointIn(BaseModel):
@@ -190,6 +191,7 @@ class SessionOut(BaseModel):
     featured_photo_id: uuid.UUID | None
     distance_m: float | None
     point_count: int
+    steps: int | None
     updated_at: datetime
 
 
