@@ -25,6 +25,17 @@ class WalkReminderService extends ChangeNotifier {
 
   bool _startRequested = false;
 
+  /// 다른 알림(예: 멈춤 알림)의 응답을 payload별로 넘겨받을 곳.
+  /// 알림 플러그인은 응답 콜백을 하나만 받으므로 여기서 나눠 준다.
+  final Map<String, void Function(NotificationResponse)> _responseHandlers = {};
+
+  void registerResponseHandler(
+    String payload,
+    void Function(NotificationResponse) handler,
+  ) {
+    _responseHandlers[payload] = handler;
+  }
+
   /// 알림을 눌러 앱이 열렸고 아직 기록 화면을 띄우지 않은 상태.
   bool get startRequested => _startRequested;
 
@@ -115,6 +126,11 @@ class WalkReminderService extends ChangeNotifier {
   }
 
   void _handleResponse(NotificationResponse response) {
+    final handler = _responseHandlers[response.payload];
+    if (handler != null) {
+      handler(response);
+      return;
+    }
     if (response.payload != _payload && response.actionId != _startActionId) {
       return;
     }

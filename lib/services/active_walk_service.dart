@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,8 @@ import 'package:uuid/uuid.dart';
 
 import '../models/walk_models.dart';
 import 'gpx_exporter.dart';
+import 'idle_notifier.dart';
+import 'idle_watcher.dart';
 import 'location_tracker.dart';
 import 'photo_storage.dart';
 import 'session_photo_finder.dart';
@@ -30,6 +33,15 @@ class ActiveWalkService extends ChangeNotifier {
   bool _tracking = false;
   bool _saving = false;
   String? _status;
+
+  // 한자리에 오래 머물면 묻고, 응답이 없으면 기록을 끝낸다(배터리 절약).
+  static const _idleCheckInterval = Duration(seconds: 30);
+  IdleWatcher _idle = IdleWatcher();
+  Timer? _idleTimer;
+  late final IdleNotifier _idleNotifier = IdleNotifier(
+    onContinue: _continueFromIdle,
+    onFinish: () => finish(),
+  );
 
   bool get isActive => _sessionId != null;
   bool get isSaving => _saving;
@@ -82,6 +94,9 @@ class ActiveWalkService extends ChangeNotifier {
     _points.clear();
     _photos.clear();
     _status = null;
+    _idle = IdleWatcher();
+    _idleTimer?.cancel();
+    _idleTimer = Timer.periodic(_idleCheckInterval, (_) => _checkIdle());
     notifyListeners();
 
     await _startTracking();
@@ -161,17 +176,26 @@ class ActiveWalkService extends ChangeNotifier {
     await _writeDraft();
   }
 
-  Future<WalkSession?> finish() async {
-    if (!isActive || _points.isEmpty) {
+  /// [endedAt]을 주면 그 뒤의 포인트는 버린다(멈춰 있던 구간을 빼고 저장).
+  Future<WalkSession?> finish({DateTime? endedAt}) async {
+    if (!isActive || _points.isEmpty || _saving) {
       return null;
     }
 
     _saving = true;
     notifyListeners();
+    await _stopIdleWatch();
     await _tracker.stop();
     _tracking = false;
 
-    var session = _snapshot(endedAt: DateTime.now());
+    final end = endedAt ?? DateTime.now();
+    final firstPoint = _points.first;
+    _points.removeWhere((point) => point.recordedAt.isAfter(end));
+    if (_points.isEmpty) {
+      _points.add(firstPoint);
+    }
+
+    var session = _snapshot(endedAt: end);
     // 만보기 앱이 아직 마지막 몇 분을 쓰지 않았을 수 있다. 목록·상세를 열 때 다시 읽는다.
     final steps = await StepService.instance.stepsBetween(
       session.startedAt,
@@ -195,6 +219,7 @@ class ActiveWalkService extends ChangeNotifier {
   }
 
   Future<void> discard() async {
+    await _stopIdleWatch();
     await _tracker.stop();
     _tracking = false;
     _sessionId = null;
@@ -241,8 +266,42 @@ class ActiveWalkService extends ChangeNotifier {
     }
 
     _points.add(point);
+    final wasPrompted = _idle.prompted;
+    if (_idle.addPoint(point) && wasPrompted) {
+      // 알림에 답하지 않았어도 다시 걷기 시작했으면 계속 산책 중이다.
+      await _idleNotifier.cancelPrompt();
+    }
     notifyListeners();
     await _writeDraft();
+  }
+
+  Future<void> _checkIdle() async {
+    if (!isActive || _saving) {
+      return;
+    }
+    switch (_idle.evaluate(DateTime.now())) {
+      case IdleAction.none:
+        return;
+      case IdleAction.prompt:
+        await _idleNotifier.showPrompt();
+      case IdleAction.end:
+        final session = await finish(endedAt: _idle.endAt);
+        if (session != null) {
+          await _idleNotifier.showEnded();
+        }
+    }
+  }
+
+  void _continueFromIdle() {
+    if (isActive) {
+      _idle.confirm(DateTime.now());
+    }
+  }
+
+  Future<void> _stopIdleWatch() async {
+    _idleTimer?.cancel();
+    _idleTimer = null;
+    await _idleNotifier.cancelPrompt();
   }
 
   Future<void> _writeDraft() async {

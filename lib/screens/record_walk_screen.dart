@@ -23,6 +23,8 @@ class _RecordWalkScreenState extends State<RecordWalkScreen> {
   final ActiveWalkService _activeWalk = ActiveWalkService.instance;
   Timer? _ticker;
   bool _showMap = false;
+  // 이 화면이 직접 끝내는 중이거나 이미 닫았다.
+  bool _closing = false;
 
   @override
   void initState() {
@@ -129,18 +131,27 @@ class _RecordWalkScreenState extends State<RecordWalkScreen> {
   }
 
   void _refresh() {
-    if (mounted) {
-      setState(() {});
+    if (!mounted) {
+      return;
     }
+    // 멈춤 알림에서 종료했거나 자동 종료돼 기록이 끝났다.
+    if (!_activeWalk.isActive && !_closing) {
+      _closing = true;
+      Navigator.of(context).pop(true);
+      return;
+    }
+    setState(() {});
   }
 
   Future<void> _finishWalk() async {
+    _closing = true;
     final session = await _activeWalk.finish();
     if (!mounted) {
       return;
     }
 
     if (session == null) {
+      _closing = false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('아직 기록된 위치가 없습니다.')),
       );
@@ -213,6 +224,7 @@ class _RecordWalkScreenState extends State<RecordWalkScreen> {
       return;
     }
 
+    _closing = true;
     await _activeWalk.discard();
     if (mounted) {
       Navigator.of(context).pop(false);

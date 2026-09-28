@@ -30,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final DateFormat _dayHeader = DateFormat('M월 d일');
   final DateFormat _clock = DateFormat('HH:mm');
   List<WalkSession> _sessions = [];
+  late bool _walkWasActive = _activeWalk.isActive;
   bool _loading = true;
   int _tabIndex = 0;
   DateTime _visibleMonth = DateTime(DateTime.now().year, DateTime.now().month);
@@ -195,9 +196,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _refresh() {
-    if (mounted) {
-      setState(() {});
+    if (!mounted) {
+      return;
     }
+    // 멈춤 알림 등으로 기록 화면 밖에서 산책이 끝나면 새 기록을 목록에 올린다.
+    final active = _activeWalk.isActive;
+    if (_walkWasActive && !active) {
+      _loadSessions();
+    }
+    _walkWasActive = active;
+    setState(() {});
   }
 
   static DateTime _dayKey(DateTime value) {
