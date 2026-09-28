@@ -1,0 +1,65 @@
+# 로컬 개발과 서버 배포에 같이 쓴다. 값은 .env에서 읽는다(.env.example 참고).
+name: footnote
+
+services:
+  db:
+    image: timescale/timescaledb-ha:pg17
+    environment:
+      POSTGRES_USER: footnote
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: footnote
+    volumes:
+      - pgdata:/home/postgres/pgdata
+    ports:
+      - "127.0.0.1:${DB_PORT:-15433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U footnote -d footnote"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  storage:
+    image: chrislusf/seaweedfs:4.47
+    entrypoint: ["/bin/sh", "/seaweedfs-entrypoint.sh"]
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?set S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?set S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET:-footnote}
+    volumes:
+      - ./seaweedfs-entrypoint.sh:/seaweedfs-entrypoint.sh:ro
+      - seaweed:/data
+    ports:
+      # 폰이 presigned URL로 직접 접속하는 S3 포트.
+      - "${S3_BIND:-127.0.0.1}:${S3_PORT:-8333}:8333"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8333/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  api:
+    build: .
+    image: footnote-api:latest
+    profiles: ["api"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://footnote:${POSTGRES_PASSWORD}@db:5432/footnote
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      S3_ENDPOINT: http://storage:8333
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:?set S3_PUBLIC_ENDPOINT}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET:-footnote}
+    depends_on:
+      db:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+    ports:
+      - "${API_BIND:-127.0.0.1}:${API_PORT:-8000}:8000"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  seaweed:

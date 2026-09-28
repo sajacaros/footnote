@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>비밀번호 재설정</title>
+<style>
+  :root {
+    --paper: #F7F6F1; --surface: #fff; --line: #E5E0D6;
+    --ink: #151713; --muted: #6B6D66; --brand: #1F8A70; --brand-tint: #EAF6F1;
+    --warn: #FFF4D8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+  main { max-width: 420px; margin: 0 auto; padding: 40px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; font-weight: 800; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 20px; }
+  .who { background: var(--brand-tint); border-radius: 8px; padding: 12px 14px; margin-bottom: 18px; }
+  .who strong { display: block; }
+  .who span { color: var(--muted); font-size: 13px; }
+  label { display: block; font-weight: 700; font-size: 13px; margin: 14px 0 6px; }
+  input { width: 100%; padding: 11px 12px; border: 1.5px solid var(--line); border-radius: 8px; font: inherit; }
+  input:focus { outline: none; border-color: var(--brand); }
+  button { width: 100%; margin-top: 20px; min-height: 48px; border: 0; border-radius: 8px;
+    background: var(--brand); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  .error { background: var(--warn); border-radius: 8px; padding: 10px 12px; margin-top: 14px; }
+  .pw-rules { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; color: var(--muted);
+    display: grid; gap: 3px; }
+  .pw-rules li::before { content: "•"; display: inline-block; width: 16px; text-align: center; }
+  .pw-rules li.ok { color: #1F6F5B; }
+  .pw-rules li.ok::before { content: "✓"; font-weight: 700; }
+  .pw-rules li.bad { color: #B3261E; }
+  .pw-rules li.bad::before { content: "✕"; font-weight: 700; }
+  .pw-match { font-size: 13px; margin-top: 6px; min-height: 18px; }
+  .pw-match.ok { color: #1F6F5B; }
+  .pw-match.bad { color: #B3261E; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>비밀번호 재설정</h1>
+  <p class="sub" id="intro">링크를 확인하는 중…</p>
+
+  <form class="card" id="form" hidden>
+    <div class="who"><strong id="name"></strong><span id="email"></span></div>
+    <label for="pw">새 비밀번호</label>
+    <input id="pw" type="password" required autocomplete="new-password">
+    <label for="pw2">새 비밀번호 확인</label>
+    <input id="pw2" type="password" required autocomplete="new-password">
+    <div class="pw-match" id="match"></div>
+    <button type="submit">비밀번호 바꾸기</button>
+    <div class="error" id="error" role="alert" hidden></div>
+  </form>
+
+  <div class="card" id="done" hidden>
+    <strong>비밀번호를 바꿨습니다.</strong>
+    <p class="sub" style="margin:6px 0 0">풋노트 앱으로 돌아가 새 비밀번호로 로그인하세요. 다른 기기에서는 모두 로그아웃됐습니다.</p>
+  </div>
+
+  <div class="card" id="invalid" hidden>
+    <strong>사용할 수 없는 링크입니다.</strong>
+    <p class="sub" style="margin:6px 0 0" id="invalid-msg"></p>
+  </div>
+</main>
+<script src="/password-policy.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const token = new URLSearchParams(location.hash.slice(1)).get("token") || "";
+// 이메일은 가려서만 받으므로 이메일 아이디 규칙은 서버가 판단한다.
+const policy = PasswordPolicy.attach($("pw"));
+function updateMatch() {
+  const out = $("match");
+  if (!$("pw2").value) { out.textContent = ""; out.className = "pw-match"; return; }
+  const same = $("pw").value === $("pw2").value;
+  out.textContent = same ? "✓ 비밀번호가 같습니다." : "✕ 비밀번호가 서로 다릅니다.";
+  out.className = `pw-match ${same ? "ok" : "bad"}`;
+}
+$("pw").addEventListener("input", updateMatch);
+$("pw2").addEventListener("input", updateMatch);
+// 주소창과 방문 기록에 토큰이 남지 않게 지운다.
+history.replaceState(null, "", location.pathname);
+
+function invalid(message) {
+  $("intro").hidden = true;
+  $("form").hidden = true;
+  $("invalid-msg").textContent = message;
+  $("invalid").hidden = false;
+}
+
+async function post(path, body) {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = res.status === 204 ? null : await res.json().catch(() => null);
+  const d = data && data.detail;
+  const message = !d ? "처리하지 못했습니다." : typeof d === "string" ? d : d.message || "입력값을 확인해 주세요.";
+  return { ok: res.ok, data, message };
+}
+
+(async function start() {
+  if (!token) return invalid("링크가 올바르지 않습니다. 관리자에게 받은 링크를 그대로 열어 주세요.");
+  const { ok, data, message } = await post("/v1/auth/reset-password/check", { token });
+  if (!ok) return invalid(message);
+  $("name").textContent = data.display_name;
+  const until = new Date(data.expires_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+  $("email").textContent = `${data.email_hint} · ${until}까지 유효`;
+  $("intro").textContent = "새로 쓸 비밀번호를 정해 주세요.";
+  $("form").hidden = false;
+  $("pw").focus();
+})();
+
+$("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const error = $("error");
+  error.hidden = true;
+  if (!policy.isValid()) {
+    error.textContent = "비밀번호 규칙을 모두 지켜 주세요. ✕ 표시된 항목을 확인해 주세요.";
+    error.hidden = false;
+    return;
+  }
+  if ($("pw").value !== $("pw2").value) {
+    error.textContent = "새 비밀번호가 서로 다릅니다.";
+    error.hidden = false;
+    return;
+  }
+  const button = e.currentTarget.querySelector("button");
+  button.disabled = true;
+  const { ok, data, message } = await post("/v1/auth/reset-password", { token, new_password: $("pw").value });
+  button.disabled = false;
+  if (!ok) {
+    const d = data && data.detail;
+    if (d && d.code === "weak_password") PasswordPolicy.markServerProblems($("pw"), d.problems);
+    error.textContent = d && d.code === "weak_password"
+      ? "비밀번호가 규칙에 맞지 않습니다. 아래 ✕ 표시된 항목을 확인해 주세요."
+      : message;
+    error.hidden = false;
+    return;
+  }
+  $("form").hidden = true;
+  $("intro").hidden = true;
+  $("done").hidden = false;
+});
+</script>
+</body>
+</html>
