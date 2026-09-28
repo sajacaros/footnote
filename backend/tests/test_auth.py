@@ -121,10 +121,12 @@ async def test_admin_api_requires_admin(client, admin):
     assert self_reject.status_code == 400
 
 
-async def test_admin_page_is_served(client):
+async def test_web_page_is_served(client):
     page = await client.get("/")
     assert page.status_code == 200
     assert "풋노트" in page.text
+    icon = await client.get("/icon.svg")
+    assert icon.headers["content-type"].startswith("image/svg+xml")
 
 
 async def test_change_password_logs_out_other_devices(client, admin):

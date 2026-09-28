@@ -1,10 +1,12 @@
+import json
 import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select, text, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 
+from .. import storage
 from ..deps import CurrentUser, DbSession
 from ..models import TrackPoint, WalkPhoto, WalkSession
 from ..schemas import (
@@ -15,9 +17,10 @@ from ..schemas import (
     SessionDetail,
     SessionFinish,
     SessionOut,
+    SessionOverview,
     SessionUpdate,
 )
-from .photos import photo_out
+from .photos import photo_keys, photo_out
 
 router = APIRouter(prefix="/v1/sessions", tags=["sessions"])
 
@@ -79,6 +82,55 @@ async def list_sessions(db: DbSession, user: CurrentUser) -> list[SessionOut]:
         .order_by(WalkSession.started_at.desc())
     )
     return [SessionOut.model_validate(row) for row in rows]
+
+
+@router.get("/overview")
+async def list_overview(db: DbSession, user: CurrentUser) -> list[SessionOverview]:
+    """목록 화면용 요약. 카드에 경로 모양을 그릴 만큼만 줄인 좌표와 대표 사진 썸네일."""
+    rows = (
+        await db.execute(
+            select(
+                WalkSession,
+                # 약 5m 이하의 굴곡은 버린다. 카드 크기에서는 차이가 보이지 않는다.
+                func.ST_AsGeoJSON(func.ST_Simplify(WalkSession.route, 0.00005)),
+            )
+            .where(WalkSession.user_id == user.id, WalkSession.deleted_at.is_(None))
+            .order_by(WalkSession.started_at.desc())
+        )
+    ).all()
+    session_ids = [session.id for session, _ in rows]
+    photos: dict[uuid.UUID, list[WalkPhoto]] = {}
+    if session_ids:
+        for photo in await db.scalars(
+            select(WalkPhoto)
+            .where(
+                WalkPhoto.session_id.in_(session_ids),
+                WalkPhoto.deleted_at.is_(None),
+                WalkPhoto.status == "ready",
+            )
+            .order_by(WalkPhoto.taken_at)
+        ):
+            photos.setdefault(photo.session_id, []).append(photo)
+
+    result = []
+    for session, geojson in rows:
+        session_photos = photos.get(session.id, [])
+        featured = next(
+            (p for p in session_photos if p.id == session.featured_photo_id),
+            session_photos[0] if session_photos else None,
+        )
+        thumb_url = None
+        if featured is not None:
+            thumb_url = await storage.presign_get(photo_keys(featured)["thumb"])
+        result.append(
+            SessionOverview(
+                **SessionOut.model_validate(session).model_dump(),
+                route=json.loads(geojson)["coordinates"] if geojson else [],
+                photo_count=len(session_photos),
+                thumb_url=thumb_url,
+            )
+        )
+    return result
 
 
 @router.get("/{session_id}")

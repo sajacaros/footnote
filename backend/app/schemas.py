@@ -195,6 +195,14 @@ class SessionOut(BaseModel):
     updated_at: datetime
 
 
+class SessionOverview(SessionOut):
+    """웹 목록 카드용. 경로는 단순화한 [lng, lat] 목록, 사진은 썸네일 하나만 준다."""
+
+    route: list[list[float]]
+    photo_count: int
+    thumb_url: str | None
+
+
 class SessionDetail(SessionOut):
     points: list[PointOut]
     photos: list[PhotoOut]

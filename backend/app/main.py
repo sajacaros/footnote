@@ -12,7 +12,8 @@ from .gzip_request import GzipRequestMiddleware
 from .routers import admin, auth, photos, sessions
 
 _WEB = Path(__file__).parent / "web"
-_ADMIN_PAGE = (_WEB / "admin.html").read_text(encoding="utf-8")
+_APP_PAGE = (_WEB / "app.html").read_text(encoding="utf-8")
+_ICON = (_WEB / "icon.svg").read_text(encoding="utf-8")
 _RESET_PAGE = (_WEB / "reset.html").read_text(encoding="utf-8")
 _POLICY_JS = (_WEB / "password-policy.js").read_text(encoding="utf-8")
 
@@ -37,9 +38,21 @@ app.include_router(photos.router)
 
 
 @app.get("/", include_in_schema=False)
-async def admin_page() -> HTMLResponse:
-    """관리자가 없으면 셋업, 있으면 로그인 → 가입 승인 화면(한 페이지에서 분기)."""
-    return HTMLResponse(_ADMIN_PAGE, headers={"Cache-Control": "no-store"})
+async def app_page() -> HTMLResponse:
+    """앱에서 올린 산책을 보는 웹 페이지. 관리자에게는 가입 관리 메뉴가 더 보인다.
+
+    관리자가 없으면 첫 관리자를 만드는 셋업 화면이 먼저 나온다(한 페이지에서 분기).
+    """
+    return HTMLResponse(_APP_PAGE, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/icon.svg", include_in_schema=False)
+async def icon() -> Response:
+    return Response(
+        _ICON,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 @app.get("/reset", include_in_schema=False)

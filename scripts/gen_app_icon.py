@@ -2,7 +2,8 @@
 
     python3 scripts/gen_app_icon.py
 
-android/app/src/main/res/drawable 아래 전경·배경·테마(단색) 레이어를 다시 쓴다.
+android/app/src/main/res/drawable 아래 전경·배경·테마(단색) 레이어와
+웹 페이지 아이콘(backend/app/web/icon.svg)을 다시 쓴다.
 svg()는 미리보기용으로, 같은 도형을 SVG로 그린다.
 """
 from pathlib import Path
@@ -130,3 +131,6 @@ if __name__ == "__main__":
     open(f"{out}/ic_launcher_foreground.xml", "w").write(HEADER + "".join(vd_shape(s) for s in foreground()) + "</vector>\n")
     open(f"{out}/ic_launcher_monochrome.xml", "w").write(HEADER + "".join(vd_shape(s) for s in monochrome()) + "</vector>\n")
     open(f"{out}/ic_launcher_background.xml", "w").write(background_vd())
+    # 웹 페이지 파비콘·로고
+    web = Path(__file__).resolve().parent.parent / "backend/app/web/icon.svg"
+    web.write_text(svg(foreground(), "squircle", size=64) + "\n")

@@ -168,3 +168,33 @@ async def test_deleting_user_removes_points(client, admin):
     finally:
         await conn.close()
     assert left == 0
+
+
+async def test_overview_gives_simplified_route(client, admin):
+    account = await signup(client, admin)
+    headers = account["headers"]
+    session_id = await _create_session(client, headers)
+    await client.post(
+        f"/v1/sessions/{session_id}/points:batch",
+        json={"points": _points(0, 50)},
+        headers=headers,
+    )
+    await client.post(
+        f"/v1/sessions/{session_id}/finish",
+        json={"ended_at": (START + timedelta(minutes=2)).isoformat(), "last_seq": 49},
+        headers=headers,
+    )
+    # 경로가 없는(포인트가 모자란) 세션도 목록에 나온다.
+    await _create_session(client, headers)
+
+    response = await client.get("/v1/sessions/overview", headers=headers)
+    assert response.status_code == 200, response.text
+    items = response.json()
+    assert len(items) == 2
+    walked = next(item for item in items if item["id"] == session_id)
+    # 직선이라 양 끝점만 남는다.
+    assert walked["route"] == [[126.978, 37.5665], [126.978, 37.5665 + 49 * 0.00001]]
+    assert walked["photo_count"] == 0
+    assert walked["thumb_url"] is None
+    other = next(item for item in items if item["id"] != session_id)
+    assert other["route"] == []

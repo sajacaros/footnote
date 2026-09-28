@@ -12,7 +12,7 @@ from ..schemas import PhotoCreate, PhotoCreateResult, PhotoOut, UploadTarget
 router = APIRouter(prefix="/v1/photos", tags=["photos"])
 
 
-def _keys(photo: WalkPhoto) -> dict[str, str]:
+def photo_keys(photo: WalkPhoto) -> dict[str, str]:
     return {
         variant: storage.photo_key(photo.user_id, photo.id, variant, photo.content_type)
         for variant in storage.VARIANTS
@@ -23,7 +23,7 @@ async def photo_out(photo: WalkPhoto) -> PhotoOut:
     out = PhotoOut.model_validate(photo)
     if photo.status == "ready":
         out.urls = {
-            variant: await storage.presign_get(key) for variant, key in _keys(photo).items()
+            variant: await storage.presign_get(key) for variant, key in photo_keys(photo).items()
         }
     return out
 
@@ -66,7 +66,7 @@ async def create_photo(body: PhotoCreate, db: DbSession, user: CurrentUser) -> P
 
     uploads: dict[str, UploadTarget] = {}
     if photo.status != "ready":
-        for variant, key in _keys(photo).items():
+        for variant, key in photo_keys(photo).items():
             uploads[variant] = UploadTarget(
                 url=await storage.presign_put(key, photo.content_type),
                 headers={"Content-Type": photo.content_type},
@@ -79,7 +79,7 @@ async def complete_photo(photo_id: uuid.UUID, db: DbSession, user: CurrentUser) 
     """앱이 업로드를 마쳤다고 알리면 스토리지에 실제로 있는지 확인하고 ready로 바꾼다."""
     photo = await _owned_photo(db, user, photo_id)
     if photo.status != "ready":
-        keys = _keys(photo)
+        keys = photo_keys(photo)
         missing = [
             variant for variant, key in keys.items() if await storage.object_size(key) is None
         ]
@@ -111,4 +111,4 @@ async def delete_photo(photo_id: uuid.UUID, db: DbSession, user: CurrentUser) ->
     photo = await _owned_photo(db, user, photo_id)
     photo.deleted_at = datetime.now(UTC)
     await db.commit()
-    await storage.delete_objects(list(_keys(photo).values()))
+    await storage.delete_objects(list(photo_keys(photo).values()))
