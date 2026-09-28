@@ -142,7 +142,13 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.all(20),
+            // 제스처/내비게이션 바가 앱 위에 겹치므로 그 높이만큼 더 띄운다.
+            padding: EdgeInsets.fromLTRB(
+              20,
+              20,
+              20,
+              20 + MediaQuery.paddingOf(context).bottom,
+            ),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 MetricRow(
