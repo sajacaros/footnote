@@ -54,7 +54,8 @@ class WalkReminderService extends ChangeNotifier {
 
     await _plugin.initialize(
       settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        // 상태 표시줄 아이콘은 단색이어야 해서 앱 아이콘의 발바닥 레이어를 쓴다.
+        android: AndroidInitializationSettings('ic_launcher_monochrome'),
       ),
       onDidReceiveNotificationResponse: _handleResponse,
     );

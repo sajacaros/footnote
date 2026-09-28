@@ -82,6 +82,10 @@ class LocationTracker {
           notificationTitle: 'Footnote Walk',
           notificationText: '산책 경로를 기록하는 중입니다.',
           notificationChannelName: '산책 기록',
+          notificationIcon: AndroidResource(
+            name: 'ic_launcher_monochrome',
+            defType: 'drawable',
+          ),
           enableWakeLock: true,
           setOngoing: true,
           color: AppColors.brand,

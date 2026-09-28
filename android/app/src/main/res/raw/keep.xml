@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 알림 아이콘은 코드에서 이름(문자열)으로만 찾으므로 리소스 축소 때 지워지지 않게 한다. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_launcher_monochrome" />
