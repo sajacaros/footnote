@@ -238,7 +238,7 @@ class _PermissionNotice extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
       decoration: BoxDecoration(
         color: AppColors.warningTint,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Row(
         children: [
@@ -313,13 +313,13 @@ class _ReminderEditorState extends State<_ReminderEditor> {
           Text(_isNew ? '알림 추가' : '알림 수정', style: textTheme.titleLarge),
           const SizedBox(height: 16),
           InkWell(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
             onTap: _pickTime,
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
                 border: Border.all(color: AppColors.line, width: 1.5),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               child: Text(
                 '${_time.hour.toString().padLeft(2, '0')}:'

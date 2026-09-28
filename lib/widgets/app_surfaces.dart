@@ -44,6 +44,9 @@ class EmptyStateCard extends StatelessWidget {
 }
 
 /// 숫자 + 단위 표기. 모든 화면에서 값 위, 단위 아래, 왼쪽 정렬로 통일한다.
+///
+/// 값이 숫자(예: 0.63, 54, 1,234)면 처음 보일 때 0부터, 바뀔 때는 이전 값에서
+/// 새 값까지 짧게 올라간다. 시각(03:12)이나 '-' 같은 값은 그대로 보여 준다.
 class MetricValue extends StatelessWidget {
   const MetricValue({
     required this.value,
@@ -56,9 +59,35 @@ class MetricValue extends StatelessWidget {
   final String label;
   final bool onDark;
 
+  static final _number = RegExp(r'^\d{1,3}(,\d{3})*(\.\d+)?$|^\d+(\.\d+)?$');
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final style = textTheme.headlineSmall?.copyWith(
+      color: onDark ? Colors.white : AppColors.ink,
+      fontFamily: kDisplayFont,
+      fontSize: 28,
+    );
+    final Widget text;
+    if (_number.hasMatch(value)) {
+      final target = double.parse(value.replaceAll(',', ''));
+      final dot = value.indexOf('.');
+      final decimals = dot < 0 ? 0 : value.length - dot - 1;
+      final grouped = value.contains(',');
+      text = TweenAnimationBuilder<double>(
+        tween: Tween(end: target),
+        duration: const Duration(milliseconds: 700),
+        curve: Curves.easeOutCubic,
+        builder: (context, current, _) => Text(
+          _format(current, decimals, grouped),
+          maxLines: 1,
+          style: style,
+        ),
+      );
+    } else {
+      text = Text(value, maxLines: 1, style: style);
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -66,14 +95,7 @@ class MetricValue extends StatelessWidget {
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
-          child: Text(
-            value,
-            maxLines: 1,
-            style: textTheme.headlineSmall?.copyWith(
-              color: onDark ? Colors.white : AppColors.ink,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          child: text,
         ),
         Text(
           label,
@@ -83,6 +105,19 @@ class MetricValue extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  static String _format(double value, int decimals, bool grouped) {
+    final fixed = value.toStringAsFixed(decimals);
+    if (!grouped) {
+      return fixed;
+    }
+    final parts = fixed.split('.');
+    final whole = parts[0].replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => ',',
+    );
+    return parts.length > 1 ? '$whole.${parts[1]}' : whole;
   }
 }
 

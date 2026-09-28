@@ -95,7 +95,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: AppColors.warningTint,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
                       ),
                       child: Text(_sync.error!),
                     ),

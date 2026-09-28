@@ -242,24 +242,26 @@ class _StatusPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.ink,
-        borderRadius: BorderRadius.circular(8),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.brandLight, AppColors.brandStrong],
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: kCardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.directions_walk_rounded,
-                color: Colors.white,
-              ),
+              const Icon(Icons.pets, color: AppColors.paw),
               const SizedBox(width: 8),
               Text(
-                '기록 중',
+                '산책 기록 중',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: Colors.white,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 20,
                     ),
               ),
             ],
@@ -348,7 +350,7 @@ class _PhotoSection extends StatelessWidget {
       itemBuilder: (context, index) {
         final photo = photos[index];
         return ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           child: WalkPhotoImage(imageUrl: photo.imageUrl, fit: BoxFit.cover),
         );
       },
@@ -368,7 +370,7 @@ class _Notice extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.warningTint,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Text(text),
     );

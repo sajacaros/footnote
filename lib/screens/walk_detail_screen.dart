@@ -891,7 +891,7 @@ class _PhotoThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Stack(
         children: [
           GestureDetector(
@@ -944,7 +944,7 @@ class _PhotoThumb extends StatelessWidget {
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: AppColors.photoScrim,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 7, vertical: 4),
@@ -967,7 +967,7 @@ class _PhotoThumb extends StatelessWidget {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: AppColors.photoScrim,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(8),

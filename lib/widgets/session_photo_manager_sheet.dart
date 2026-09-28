@@ -137,7 +137,7 @@ class _CandidateTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -181,7 +181,7 @@ class _CandidateTile extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: AppColors.photoScrim,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   child: const Text(
                     '첨부됨',

@@ -38,3 +38,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  fonts:
+    # 제목·큰 숫자용 둥근 한글 글꼴. SIL OFL 1.1 (assets/fonts/OFL-Jua.txt)
+    - family: Jua
+      fonts:
+        - asset: assets/fonts/Jua-Regular.ttf
