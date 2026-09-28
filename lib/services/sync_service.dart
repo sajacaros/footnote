@@ -99,7 +99,7 @@ class SyncService extends ChangeNotifier {
     }
 
     for (final target in await _repository.pendingSyncSessions()) {
-      // 목업 기록(walk-001 등)은 서버로 보내지 않는다.
+      // 앱이 만든 UUID가 아닌 기록(예전 예시 데이터 등)은 서버로 보내지 않는다.
       if (!_uuid.hasMatch(target.sessionId)) {
         await _repository.markSessionSynced(target.sessionId, target.rev);
         continue;

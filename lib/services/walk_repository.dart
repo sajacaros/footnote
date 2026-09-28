@@ -4,7 +4,6 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/walk_models.dart';
 import '../models/walk_reminder.dart';
-import 'mock_walk_repository.dart';
 
 class WalkRepository {
   WalkRepository._();
@@ -15,8 +14,6 @@ class WalkRepository {
 
   Future<List<WalkSession>> loadSessions() async {
     final db = await _open();
-    await _seedIfEmpty(db);
-    await _normalizeMockSessionDates(db);
 
     final sessionRows = await db.query(
       'walk_sessions',
@@ -294,7 +291,7 @@ class WalkRepository {
     final path = p.join(dbPath, 'footnote_walk.db');
     _database = await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE walk_sessions (
@@ -350,6 +347,9 @@ class WalkRepository {
           await db
               .execute('ALTER TABLE walk_sessions ADD COLUMN steps INTEGER');
         }
+        if (oldVersion < 6) {
+          await _removeSampleSessions(db);
+        }
       },
     );
 
@@ -387,6 +387,18 @@ class WalkRepository {
         value TEXT
       )
     ''');
+  }
+
+  /// 예전 버전이 빈 DB에 넣던 예시 산책(walk-001~003)을 지운다.
+  /// 서버로 올라간 적이 없으므로 삭제 대기열에 넣지 않는다.
+  static Future<void> _removeSampleSessions(Database db) async {
+    const where = "session_id IN ('walk-001', 'walk-002', 'walk-003')";
+    await db.delete('track_points', where: where);
+    await db.delete('walk_photos', where: where);
+    await db.delete(
+      'walk_sessions',
+      where: "id IN ('walk-001', 'walk-002', 'walk-003')",
+    );
   }
 
   static Future<void> _touch(DatabaseExecutor txn, String sessionId) async {
@@ -574,64 +586,6 @@ class WalkRepository {
         enabled INTEGER NOT NULL
       )
     ''');
-  }
-
-  Future<void> _seedIfEmpty(Database db) async {
-    final rows =
-        await db.rawQuery('SELECT COUNT(*) AS count FROM walk_sessions');
-    final count = Sqflite.firstIntValue(rows) ?? 0;
-    if (count > 0) {
-      return;
-    }
-
-    for (final session in MockWalkRepository.loadSessions()) {
-      await saveSession(session);
-    }
-  }
-
-  Future<void> _normalizeMockSessionDates(Database db) async {
-    for (final session in MockWalkRepository.loadSessions()) {
-      final rows = await db.query(
-        'walk_sessions',
-        columns: ['id'],
-        where: 'id = ?',
-        whereArgs: [session.id],
-        limit: 1,
-      );
-      if (rows.isEmpty) {
-        continue;
-      }
-
-      await db.transaction((txn) async {
-        await txn.update(
-          'walk_sessions',
-          {
-            'started_at': _ts(session.startedAt),
-            'ended_at': _ts(session.endedAt),
-          },
-          where: 'id = ?',
-          whereArgs: [session.id],
-        );
-
-        for (var index = 0; index < session.points.length; index += 1) {
-          await txn.update(
-            'track_points',
-            {'recorded_at': _ts(session.points[index].recordedAt)},
-            where: 'session_id = ? AND sequence = ?',
-            whereArgs: [session.id, index],
-          );
-        }
-
-        for (final photo in session.photos) {
-          await txn.update(
-            'walk_photos',
-            {'taken_at': _ts(photo.takenAt)},
-            where: 'id = ?',
-            whereArgs: [photo.id],
-          );
-        }
-      });
-    }
   }
 
   TrackPoint _pointFromRow(Map<String, Object?> row) {
