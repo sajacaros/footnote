@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
@@ -108,11 +109,22 @@ class ActiveWalkService extends ChangeNotifier {
       return;
     }
 
-    final picked = await _picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 86,
-      maxWidth: 1800,
-    );
+    final XFile? picked;
+    try {
+      picked = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 86,
+        maxWidth: 1800,
+      );
+    } on PlatformException catch (error) {
+      // 카메라 권한을 거부하면 여기로 온다. 조용히 끝내지 말고 알려 준다.
+      debugPrint('camera failed: ${error.code}');
+      _status = error.code == 'camera_access_denied'
+          ? '카메라 권한을 허용하면 사진을 찍을 수 있어요.'
+          : '카메라를 열지 못했어요.';
+      notifyListeners();
+      return;
+    }
     if (picked == null) {
       return;
     }

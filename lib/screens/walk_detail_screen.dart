@@ -291,21 +291,22 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
 
   Future<void> _addSessionPhotos() async {
     setState(() => _addingPhotos = true);
-    final candidates = await SessionPhotoFinder.findPhotos(
-      startedAt: _session.startedAt,
-      endedAt: _session.endedAt,
-    );
-    if (!mounted) {
-      return;
-    }
-    setState(() => _addingPhotos = false);
-
-    if (candidates.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이 산책 시간대에 찍힌 사진이 없습니다.')),
+    final SessionPhotoSearch search;
+    try {
+      search = await SessionPhotoFinder.findPhotos(
+        startedAt: _session.startedAt,
+        endedAt: _session.endedAt,
       );
+    } finally {
+      // 실패해도 '사진 추가' 메뉴가 계속 꺼져 있지 않게 한다.
+      if (mounted) {
+        setState(() => _addingPhotos = false);
+      }
+    }
+    if (!mounted || showPhotoSearchNotice(context, search)) {
       return;
     }
+    final candidates = search.candidates;
 
     final result = await showModalBottomSheet<PhotoManageResult>(
       context: context,

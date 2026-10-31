@@ -198,20 +198,14 @@ class _RecordWalkScreenState extends State<RecordWalkScreen> {
       return;
     }
 
-    final candidates = await SessionPhotoFinder.findPhotos(
+    final search = await SessionPhotoFinder.findPhotos(
       startedAt: startedAt,
       endedAt: DateTime.now(),
     );
-    if (!mounted) {
+    if (!mounted || showPhotoSearchNotice(context, search)) {
       return;
     }
-
-    if (candidates.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이 산책 시간대에 찍힌 사진이 없습니다.')),
-      );
-      return;
-    }
+    final candidates = search.candidates;
 
     final result = await showModalBottomSheet<PhotoManageResult>(
       context: context,

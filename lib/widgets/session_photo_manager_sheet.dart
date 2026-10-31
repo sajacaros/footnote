@@ -6,6 +6,41 @@ import '../models/walk_models.dart';
 import '../services/session_photo_finder.dart';
 import '../theme/app_theme.dart';
 
+/// 고를 사진이 없을 때 이유에 맞는 안내를 띄운다. 안내를 띄웠으면 true.
+bool showPhotoSearchNotice(BuildContext context, SessionPhotoSearch search) {
+  if (search.candidates.isNotEmpty) {
+    return false;
+  }
+  final messenger = ScaffoldMessenger.of(context);
+  switch (search.access) {
+    case PhotoAccess.denied:
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('사진 접근 권한이 없어요.'),
+          action: SnackBarAction(
+            label: '설정 열기',
+            onPressed: PhotoManager.openSetting,
+          ),
+        ),
+      );
+    case PhotoAccess.limited:
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('허용한 사진 중에는 이 산책 시간대 사진이 없어요.'),
+          action: SnackBarAction(
+            label: '사진 더 고르기',
+            onPressed: SessionPhotoFinder.selectMorePhotos,
+          ),
+        ),
+      );
+    case PhotoAccess.full:
+      messenger.showSnackBar(
+        const SnackBar(content: Text('이 산책 시간대에 찍힌 사진이 없습니다.')),
+      );
+  }
+  return true;
+}
+
 class PhotoManageResult {
   const PhotoManageResult({
     required this.toAttach,

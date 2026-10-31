@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:photo_manager/photo_manager.dart';
 
+import 'session_photo_finder.dart';
+
 class PhotoStorage {
   static const _relativePath = 'Pictures/Footnote Walk';
 
@@ -15,7 +17,9 @@ class PhotoStorage {
     final fileName =
         '${sessionId}_${DateTime.now().microsecondsSinceEpoch}$extension';
 
-    final permission = await PhotoManager.requestPermissionExtend();
+    final permission = await PhotoManager.requestPermissionExtend(
+      requestOption: photoPermissionOption,
+    );
     if (!permission.hasAccess) {
       return source.path;
     }
